@@ -1,0 +1,11 @@
+{
+    "ModuleType": "Executable",
+    "Dependencies": {
+        "Public": [],
+        "Private": [
+            "yae_b",
+            "yae_a",
+            "fmtlib"
+        ]
+    }
+}

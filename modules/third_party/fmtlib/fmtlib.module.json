@@ -1,0 +1,10 @@
+{
+    "ModuleType": "GitClone",
+    "url": "https://github.com/fmtlib/fmt",
+    "tag": "10.1.1",
+    "target_name": "fmt::fmt-header-only",
+    "Dependencies": {
+        "Public": [],
+        "Private": []
+    }
+}
