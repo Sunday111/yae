@@ -185,7 +185,8 @@ def main():
             module = module_registry.find(module_name)
             if module.module_type == ModuleType.GITCLONE:
                 # TODO: read configuration cmake variables for module
-                gen.add_subdirectory(module.cmake_subdirectory(ctx))
+                is_system = True
+                gen.add_subdirectory(module.cmake_subdirectory(ctx), is_system)
 
         for module_name in top_sorted:
             module = module_registry.find(module_name)

@@ -18,9 +18,12 @@ class CMakeGenerator:
         """Project line"""
         self.__write(f"project({project_name})\n")
 
-    def add_subdirectory(self, path: Path):
+    def add_subdirectory(self, path: Path, is_system: bool = False):
         """add_subdirectory(path)"""
-        self.__write(f"add_subdirectory({path.as_posix()})\n")
+        self.__write(f"add_subdirectory({path.as_posix()}")
+        if is_system:
+            self.__write(" SYSTEM")
+        self.line(")")
 
     @staticmethod
     def make_file_path(directory: Path) -> Path:

@@ -1,0 +1,10 @@
+{
+    "ModuleType": "GitClone",
+    "GitUrl": "https://github.com/google/benchmark",
+    "GitTag": "v1.8.3",
+    "TargetName": "benchmark::benchmark",
+    "Dependencies": {
+        "Public": [],
+        "Private": []
+    }
+}
