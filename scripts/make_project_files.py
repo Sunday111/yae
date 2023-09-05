@@ -7,8 +7,8 @@ import collections
 import subprocess
 
 from cmake_generator import CMakeGenerator
-from yae import *
 from cloned_repo_registry import ClonedRepoRegistry
+from yae import *
 
 
 class ModuleRegistry:
@@ -89,6 +89,8 @@ class ModuleRegistry:
         return True
 
     def __has_valid_module_file_name(self, module: Module) -> bool:
+        if module.module_type == ModuleType.GITCLONE:
+            return True
         module_file_path = self.__lookup[module.name].module_file_path
         expected_file_name = f"{module.name}.module.json"
         if module_file_path.name != expected_file_name:

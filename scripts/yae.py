@@ -32,7 +32,7 @@ class Module:
     def __init__(self, file_path: Path):
         self.__module_file_path = file_path
         self.__module_root_dir = self.__module_file_path.parent.resolve()
-        self.__module_name = self.root_dir.parts[-1]
+        self.__module_name = file_path.stem.replace(".module", "")
         self.__private_modules: list[str] = list()
         self.__public_modules: list[str] = list()
         self.__module_type = ModuleType.LIBRARY

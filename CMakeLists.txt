@@ -12,17 +12,17 @@ set(YAE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 # ---------------------------- External Dependencies -----------------------------
 
-# https://github.com/google/googletest v1.14.0
-option(INSTALL_GTEST OFF)
-option(BUILD_GMOCK OFF)
-add_subdirectory(cloned_repositories/google/googletest/1_14_0 SYSTEM)
+# https://github.com/google/benchmark v1.8.3
+option(BENCHMARK_ENABLE_TESTING OFF)
+add_subdirectory(cloned_repositories/google/googlebench/1_8_3 SYSTEM)
 
 # https://github.com/fmtlib/fmt 10.1.1
 add_subdirectory(cloned_repositories/fmt/10_1_1 SYSTEM)
 
-# https://github.com/google/benchmark v1.8.3
-option(BENCHMARK_ENABLE_TESTING OFF)
-add_subdirectory(cloned_repositories/google/googlebench/1_8_3 SYSTEM)
+# https://github.com/google/googletest v1.14.0
+option(INSTALL_GTEST OFF)
+option(BUILD_GMOCK OFF)
+add_subdirectory(cloned_repositories/google/googletest/1_14_0 SYSTEM)
 
 # --------------------------------- Own Modules ----------------------------------
 add_subdirectory(modules/examples/yae_example_library)
