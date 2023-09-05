@@ -182,20 +182,24 @@ def main():
         top_sorted = module_registry.toplogical_sort()
 
         if module_registry.has_external_dependencies:
+            added_subdirs: set[Path] = set()
             gen.header_comment(" External Dependencies ")
             gen.line()
 
             for module_name in top_sorted:
                 module = module_registry.find(module_name)
                 if module.module_type == ModuleType.GITCLONE:
-                    gen.line(f"# {module.git_url} {module.git_tag}")
-                    for variable_name, variable_value in module.cmake_options.items():
-                        if not gen.option(variable_name, variable_value):
-                            return
+                    path = module.cmake_subdirectory(ctx)
+                    if path not in added_subdirs:
+                        gen.line(f"# {module.git_url} {module.git_tag}")
+                        for variable_name, variable_value in module.cmake_options.items():
+                            if not gen.option(variable_name, variable_value):
+                                return
 
-                    is_system = True
-                    gen.add_subdirectory(module.cmake_subdirectory(ctx), is_system)
-                    gen.line()
+                        is_system = True
+                        gen.add_subdirectory(path, is_system)
+                        gen.line()
+                        added_subdirs.add(path)
 
         gen.header_comment(" Own Modules ")
         for module_name in top_sorted:
