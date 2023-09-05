@@ -184,7 +184,15 @@ def main():
         for module_name in top_sorted:
             module = module_registry.find(module_name)
             if module.module_type == ModuleType.GITCLONE:
-                # TODO: read configuration cmake variables for module
+                for variable_name, variable_value in module.cmake_options.items():
+                    if isinstance(variable_value, bool):
+                        gen.line(f"option({variable_name} {'ON' if variable_value else 'OFF'})")
+                    else:
+                        print(
+                            f'Module {module.name} has variable "{variable_name}" with unsupported type {type(variable_value)}'
+                        )
+                        return
+
                 is_system = True
                 gen.add_subdirectory(module.cmake_subdirectory(ctx), is_system)
 

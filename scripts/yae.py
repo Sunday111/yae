@@ -76,6 +76,7 @@ class Module:
 
         self.__cmake_target_name: None | str = file_data.get("TargetName", None)
         self.__enable_testing: bool = file_data.get("EnableTesting", False)
+        self.__cmake_options: dict[str, bool | int | str] = file_data.get("CMakeOptions", {})
 
     def __read_dependencies(self, file_data: dict):
         key_dependencies = "Dependencies"
@@ -163,3 +164,7 @@ class Module:
     @property
     def enable_testing(self) -> bool:
         return self.__enable_testing
+
+    @property
+    def cmake_options(self) -> dict[str, int | str | bool]:
+        return self.__cmake_options
