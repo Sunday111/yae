@@ -34,7 +34,7 @@ class CMakeGenerator:
     def make_list_variable(self, variable_name: str, values: Iterable):
         self.__write(f"set({variable_name}\n    ")
         self.__write("\n    ".join(values))
-        self.__write(")\n")
+        self.line(")")
 
     def make_paths_list_variable(self, variable_name: str, paths: Iterable[Path]):
         self.make_list_variable(
@@ -92,3 +92,15 @@ class CMakeGenerator:
         space = ""
         self.__write(f"\n{space:{len(declaration)}}".join(self.patch_rel_path(dir) for dir in rel_dirs))
         self.line(")")
+
+    def option(self, name: str, value: str | int | bool) -> bool:
+        if isinstance(value, bool):
+            self.line(f"option({name} {'ON' if value else 'OFF'})")
+            return True
+
+        print(f'Module {name} has variable "{name}" with unsupported type {type(value)}')
+        return False
+
+    def header_comment(self, text: str):
+        header_width = 80
+        self.line(f"# { text :-^{header_width}}")

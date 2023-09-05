@@ -14,6 +14,7 @@ from yae import *
 class ModuleRegistry:
     def __init__(self):
         self.__lookup: dict[str, Module] = dict()
+        self.__has_external_dependencies = False
 
     def find(self, module_name: str) -> Module | None:
         return self.__lookup.get(module_name, None)
@@ -29,6 +30,9 @@ class ModuleRegistry:
                 print(f"   {module.module_file_path.as_posix()} <- duplicate")
                 all_added = False
             self.__lookup[module.name] = module
+
+            if module.module_type == ModuleType.GITCLONE:
+                self.__has_external_dependencies = True
         return all_added
 
     def ensure_dpependency_graph_is_valid(self) -> bool:
@@ -132,6 +136,10 @@ class ModuleRegistry:
         # Reverse the result stack to get the topological ordering
         return result_stack
 
+    @property
+    def has_external_dependencies(self) -> bool:
+        return self.__has_external_dependencies
+
 
 def main():
     ctx = GlobalContext()
@@ -181,21 +189,23 @@ def main():
 
         top_sorted = module_registry.toplogical_sort()
 
-        for module_name in top_sorted:
-            module = module_registry.find(module_name)
-            if module.module_type == ModuleType.GITCLONE:
-                for variable_name, variable_value in module.cmake_options.items():
-                    if isinstance(variable_value, bool):
-                        gen.line(f"option({variable_name} {'ON' if variable_value else 'OFF'})")
-                    else:
-                        print(
-                            f'Module {module.name} has variable "{variable_name}" with unsupported type {type(variable_value)}'
-                        )
-                        return
+        if module_registry.has_external_dependencies:
+            gen.header_comment(" External Dependencies ")
+            gen.line()
 
-                is_system = True
-                gen.add_subdirectory(module.cmake_subdirectory(ctx), is_system)
+            for module_name in top_sorted:
+                module = module_registry.find(module_name)
+                if module.module_type == ModuleType.GITCLONE:
+                    gen.line(f"# {module.git_url} {module.git_tag}")
+                    for variable_name, variable_value in module.cmake_options.items():
+                        if not gen.option(variable_name, variable_value):
+                            return
 
+                    is_system = True
+                    gen.add_subdirectory(module.cmake_subdirectory(ctx), is_system)
+                    gen.line()
+
+        gen.header_comment(" Own Modules ")
         for module_name in top_sorted:
             module = module_registry.find(module_name)
             if module.module_type != ModuleType.GITCLONE:
