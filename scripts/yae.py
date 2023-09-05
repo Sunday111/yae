@@ -54,8 +54,9 @@ class Module:
         key_dependencies = "Dependencies"
         key_public = "Public"
         key_private = "Private"
-        self.__private_modules = file_data[key_dependencies][key_private]
-        self.__public_modules = file_data[key_dependencies][key_public]
+        dependedncies: dict = file_data.get(key_dependencies, {})
+        self.__private_modules = dependedncies.get(key_private, dict())
+        self.__public_modules = dependedncies.get(key_public, dict())
 
     def __read_module_type(self, file_data: dict):
         key_module_type = "ModuleType"

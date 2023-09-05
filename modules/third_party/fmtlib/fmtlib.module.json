@@ -3,9 +3,5 @@
     "GitUrl": "https://github.com/fmtlib/fmt",
     "GitTag": "10.1.1",
     "TargetName": "fmt",
-    "LocalPath": "fmt/10_1_1",
-    "Dependencies": {
-        "Public": [],
-        "Private": []
-    }
+    "LocalPath": "fmt/10_1_1"
 }

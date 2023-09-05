@@ -6,9 +6,5 @@
     "LocalPath": "google/googlebench/1_8_3",
     "CMakeOptions": {
         "BENCHMARK_ENABLE_TESTING": false
-    },
-    "Dependencies": {
-        "Public": [],
-        "Private": []
     }
 }

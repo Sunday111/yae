@@ -7,9 +7,5 @@
     "CMakeOptions": {
         "INSTALL_GTEST": false,
         "BUILD_GMOCK": false
-    },
-    "Dependencies": {
-        "Public": [],
-        "Private": []
     }
 }
