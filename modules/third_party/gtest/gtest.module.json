@@ -3,6 +3,7 @@
     "GitUrl": "https://github.com/google/googletest",
     "GitTag": "v1.14.0",
     "TargetName": "gtest",
+    "LocalPath": "google/googletest/1_14_0",
     "CMakeOptions": {
         "INSTALL_GTEST": false,
         "BUILD_GMOCK": false

@@ -1,9 +1,8 @@
-from pathlib import Path
 import json
 from typing import Iterable, Callable, Generator
 import enum
-import collections
-import subprocess
+from global_context import GlobalContext
+from pathlib import *
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]
@@ -17,44 +16,14 @@ class ModuleType(enum.Enum):
     GITCLONE = 3
 
 
-class GlobalContext:
-    """Global state of the script"""
-
-    def __init__(self):
-        self.__scripts_dir = Path(__file__).parent.resolve()
-        self.__root_dir = self.__scripts_dir.parent.resolve()
-        self.__modules_dir = (self.root_dir / "modules").resolve()
-        self.__generated_dir = self.__root_dir / "generated"
-        self.__cloned_modules_dir = self.__root_dir / "cloned_repositories"
-
-    @property
-    def root_dir(self) -> Path:
-        """Returns path to the root directory"""
-        return self.__root_dir
-
-    @property
-    def modules_dir(self) -> Path:
-        """Returns path to the directory with modules"""
-        return self.__modules_dir
-
-    @property
-    def scripts_dir(self) -> Path:
-        """Returns path to the directory with scripts"""
-        return self.__scripts_dir
-
-    @property
-    def generated_dir(self) -> Path:
-        """Returns path to the directorty with generated files (CMakeLists, etc)"""
-        return self.__generated_dir
-
-    @property
-    def cloned_modules_dir(self) -> Path:
-        return self.__cloned_modules_dir
-
-
 def read_json_file(path: Path) -> dict:
     with open(path, mode="r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def save_json_to_file(path: Path, data: dict):
+    with open(path, mode="w", encoding="utf-8") as file:
+        return json.dump(data, file, indent=4, sort_keys=True)
 
 
 class Module:
@@ -77,6 +46,9 @@ class Module:
         self.__cmake_target_name: None | str = file_data.get("TargetName", None)
         self.__enable_testing: bool = file_data.get("EnableTesting", False)
         self.__cmake_options: dict[str, bool | int | str] = file_data.get("CMakeOptions", {})
+
+        if self.module_type == ModuleType.GITCLONE:
+            self.__local_path = Path(file_data["LocalPath"])
 
     def __read_dependencies(self, file_data: dict):
         key_dependencies = "Dependencies"
@@ -147,13 +119,8 @@ class Module:
 
     def cmake_subdirectory(self, ctx: GlobalContext) -> Path:
         if self.module_type == ModuleType.GITCLONE:
-            return self.rel_cloned_repo_path(ctx)
+            return (ctx.cloned_modules_dir / self.local_path).relative_to(ctx.root_dir)
         return self.root_dir.relative_to(ctx.root_dir)
-
-    def rel_cloned_repo_path(self, ctx: GlobalContext) -> Path:
-        absolute = ctx.cloned_modules_dir / self.name
-        relative = absolute.relative_to(ctx.root_dir)
-        return relative
 
     @property
     def cmake_target_name(self) -> str:
@@ -168,3 +135,7 @@ class Module:
     @property
     def cmake_options(self) -> dict[str, int | str | bool]:
         return self.__cmake_options
+
+    @property
+    def local_path(self) -> Path:
+        return self.__local_path

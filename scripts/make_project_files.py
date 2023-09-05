@@ -3,12 +3,12 @@
 from pathlib import Path
 import json
 from typing import Iterable, Callable, Generator
-import enum
 import collections
 import subprocess
 
 from cmake_generator import CMakeGenerator
 from yae import *
+from cloned_repo_registry import ClonedRepoRegistry
 
 
 class ModuleRegistry:
@@ -144,6 +144,7 @@ class ModuleRegistry:
 def main():
     ctx = GlobalContext()
     module_registry = ModuleRegistry()
+    cloned_repo_registry = ClonedRepoRegistry(ctx)
 
     # Gather modules
     if not module_registry.add(map(Module, ctx.modules_dir.rglob("*.module.json"))):
@@ -155,20 +156,11 @@ def main():
     if not module_registry.ensure_dpependency_graph_is_valid():
         return
 
-    # git clone --depth 1 --branch <tag_name> <repo_url>
-    def initialize_git_module(module: Module):
-        clone_dir = module.rel_cloned_repo_path(ctx)
-        if not clone_dir.exists():
-            subprocess.check_call(
-                ["git", "clone", "--depth", "1", "--branch", module.git_tag, module.git_url, clone_dir],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
     for module_name in module_registry.toplogical_sort():
         module = module_registry.find(module_name)
         if module.module_type == ModuleType.GITCLONE:
-            initialize_git_module(module)
+            if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
+                return False
 
     yae_root_var = "YAE_ROOT"
 
