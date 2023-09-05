@@ -1,6 +1,8 @@
 import subprocess
+from pathlib import Path
 
-from yae import *
+import json_utils
+from global_context import GlobalContext
 
 
 class ClonedRepoRegistry:
@@ -45,9 +47,9 @@ class ClonedRepoRegistry:
             }
             for key, value in self.cloned_repos.items()
         }
-        save_json_to_file(self.ctx.cloned_modules_registry_file, converted)
+        json_utils.save_json_to_file(self.ctx.cloned_modules_registry_file, converted)
 
     def __read_registry_file(self):
         if self.ctx.cloned_modules_registry_file.exists():
-            for path_str, identifier in read_json_file(self.ctx.cloned_modules_registry_file).items():
+            for path_str, identifier in json_utils.read_json_file(self.ctx.cloned_modules_registry_file).items():
                 self.cloned_repos[Path(path_str)] = identifier["GitUrl"], identifier["GitTag"]

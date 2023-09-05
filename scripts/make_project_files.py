@@ -1,14 +1,15 @@
 """Generates CMakeLists.txt files to build the project"""
 
 from pathlib import Path
-import json
 from typing import Iterable, Callable, Generator
 import collections
-import subprocess
 
 from cmake_generator import CMakeGenerator
 from cloned_repo_registry import ClonedRepoRegistry
-from yae import *
+from global_context import GlobalContext
+import yae_module as yae_module
+from yae_module import Module
+from yae_module import ModuleType
 
 
 class ModuleRegistry:
@@ -225,7 +226,9 @@ def main():
 
             rel_sources = sorted(path.relative_to(module.root_dir) for path in module.source_files)
 
-            has_cpp_files = any(any(path.suffix == suffix for suffix in CPP_SUFFIXES) for path in rel_sources)
+            has_cpp_files = any(
+                any(path.suffix == suffix for suffix in yae_module.CPP_SUFFIXES) for path in rel_sources
+            )
             is_interface_library = False
 
             gen.include("set_compiler_options")

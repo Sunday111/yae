@@ -1,8 +1,9 @@
-import json
 from typing import Iterable, Callable, Generator
 import enum
+from pathlib import Path
 from global_context import GlobalContext
-from pathlib import *
+
+import json_utils
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]
@@ -16,16 +17,6 @@ class ModuleType(enum.Enum):
     GITCLONE = 3
 
 
-def read_json_file(path: Path) -> dict:
-    with open(path, mode="r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def save_json_to_file(path: Path, data: dict):
-    with open(path, mode="w", encoding="utf-8") as file:
-        return json.dump(data, file, indent=4, sort_keys=True)
-
-
 class Module:
     """Represents .module.json file"""
 
@@ -36,7 +27,7 @@ class Module:
         self.__private_modules: list[str] = list()
         self.__public_modules: list[str] = list()
         self.__module_type = ModuleType.LIBRARY
-        file_data: dict = read_json_file(file_path)
+        file_data: dict = json_utils.read_json_file(file_path)
         self.__read_module_type(file_data)
         self.__read_dependencies(file_data)
         if self.module_type == ModuleType.GITCLONE:
