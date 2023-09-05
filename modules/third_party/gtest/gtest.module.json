@@ -2,7 +2,7 @@
     "ModuleType": "GitClone",
     "url": "https://github.com/google/googletest",
     "tag": "v1.14.0",
-    "target_name": "gtest",
+    "TargetName": "gtest",
     "Dependencies": {
         "Public": [],
         "Private": []

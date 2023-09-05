@@ -4,7 +4,13 @@ from yae import *
 
 def main():
     ctx = GlobalContext()
-    shutil.rmtree(ctx.cloned_modules_dir, ignore_errors=True)
+
+    def dirs_to_remove() -> Iterable[Path]:
+        yield ctx.cloned_modules_dir
+        yield ctx.root_dir / "build"
+
+    for path in dirs_to_remove():
+        shutil.rmtree(path, ignore_errors=True)
 
 
 if __name__ == "__main__":

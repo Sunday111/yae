@@ -74,10 +74,8 @@ class Module:
             self.__git_url = file_data["url"]
             self.__git_tag = file_data["tag"]
 
-        key_cmake_target_name = "target_name"
-        self.__cmake_target_name: None | str = None
-        if key_cmake_target_name in file_data:
-            self.__cmake_target_name = file_data[key_cmake_target_name]
+        self.__cmake_target_name: None | str = file_data.get("TargetName", None)
+        self.__enable_testing: bool = file_data.get("EnableTesting", False)
 
     def __read_dependencies(self, file_data: dict):
         key_dependencies = "Dependencies"
@@ -161,3 +159,7 @@ class Module:
         if self.__cmake_target_name is None:
             return self.name
         return self.__cmake_target_name
+
+    @property
+    def enable_testing(self) -> bool:
+        return self.__enable_testing

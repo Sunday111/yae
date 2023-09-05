@@ -1,7 +1,0 @@
-{
-    "ModuleType": "Executable",
-    "Dependencies": {
-        "Public": ["gtest", "yae_core"],
-        "Private": []
-    }
-}

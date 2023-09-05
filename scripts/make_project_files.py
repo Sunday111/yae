@@ -192,6 +192,9 @@ def main():
             if module.module_type != ModuleType.GITCLONE:
                 gen.add_subdirectory(module.cmake_subdirectory(ctx))
 
+        gen.line()
+        gen.line("enable_testing()")
+
     for module in (module_registry.find(module_name) for module_name in module_registry.toplogical_sort()):
         if module.module_type == ModuleType.GITCLONE:
             continue
@@ -240,6 +243,11 @@ def main():
             gen.target_link_libraries(module.name, public_access, to_cmake_modules(module.private_dependencies))
             gen.target_include_directories(module.name, public_access, [Path("code/public")])
             gen.target_include_directories(module.name, private_access, [Path("code/private")])
+
+            if module.enable_testing:
+                gen.line("enable_testing()")
+                gen.line("include(GoogleTest)")
+                gen.line(f"gtest_discover_tests({module.name})")
 
 
 if __name__ == "__main__":

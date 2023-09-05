@@ -1,7 +1,0 @@
-{
-    "ModuleType": "Library",
-    "Dependencies": {
-        "Public": [],
-        "Private": []
-    }
-}

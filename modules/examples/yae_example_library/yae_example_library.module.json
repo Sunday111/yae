@@ -2,8 +2,6 @@
     "ModuleType": "Library",
     "Dependencies": {
         "Public": [],
-        "Private": [
-            "yae_core"
-        ]
+        "Private": []
     }
 }
