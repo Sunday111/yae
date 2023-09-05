@@ -3,7 +3,7 @@
     "Dependencies": {
         "Public": [],
         "Private": [
-            "yae_a"
+            "yae_example_library"
         ]
     }
 }

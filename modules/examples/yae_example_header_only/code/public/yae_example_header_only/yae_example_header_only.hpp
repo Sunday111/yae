@@ -1,6 +1,6 @@
 #pragma once
 
-namespace yae::module_b
+namespace yae::example_header_only
 {
 class Test
 {
@@ -10,4 +10,4 @@ public:
         return 42;
     }
 };
-}  // namespace yae::module_b
+}  // namespace yae::example_header_only
