@@ -3,6 +3,7 @@ from pathlib import Path
 
 import json_utils
 from global_context import GlobalContext
+import time
 
 
 class ClonedRepoRegistry:
@@ -28,11 +29,17 @@ class ClonedRepoRegistry:
             return True
 
         self.cloned_repos[path] = git_url, git_tag
+        print(f"Cloning {git_url}")
+        print(f"    url: {git_url}")
+        print(f"    tag: {git_tag}")
+
+        start_time = time.time()
         subprocess.check_call(
             ["git", "clone", "--depth", "1", "--branch", git_tag, git_url, self.ctx.cloned_modules_dir / path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+        print(f"    time: {time.time() - start_time:.2f}s")
 
         # if clone happens without problems, dump registry to disk
         self.__save_registry_file()

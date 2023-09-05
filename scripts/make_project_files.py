@@ -7,7 +7,7 @@ import collections
 from cmake_generator import CMakeGenerator
 from cloned_repo_registry import ClonedRepoRegistry
 from global_context import GlobalContext
-import yae_module as yae_module
+import yae_module
 from yae_module import Module
 from yae_module import ModuleType
 
