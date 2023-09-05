@@ -71,8 +71,8 @@ class Module:
         self.__read_module_type(file_data)
         self.__read_dependencies(file_data)
         if self.module_type == ModuleType.GITCLONE:
-            self.__git_url = file_data["url"]
-            self.__git_tag = file_data["tag"]
+            self.__git_url = file_data["GitUrl"]
+            self.__git_tag = file_data["GitTag"]
 
         self.__cmake_target_name: None | str = file_data.get("TargetName", None)
         self.__enable_testing: bool = file_data.get("EnableTesting", False)
