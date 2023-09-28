@@ -95,7 +95,7 @@ class CMakeGenerator:
 
     def option(self, name: str, value: str | int | bool) -> bool:
         if isinstance(value, bool):
-            self.line(f"option({name} {'ON' if value else 'OFF'})")
+            self.line(f"option({name} \"\" {'ON' if value else 'OFF'})")
             return True
 
         print(f'Module {name} has variable "{name}" with unsupported type {type(value)}')

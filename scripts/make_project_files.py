@@ -259,8 +259,8 @@ def main():
                 return list(map(convert, modules))
 
             gen.line(f"set_generic_compiler_options({module.name} {private_access})")
-            gen.target_link_libraries(module.name, private_access, to_cmake_modules(module.public_dependencies))
-            gen.target_link_libraries(module.name, public_access, to_cmake_modules(module.private_dependencies))
+            gen.target_link_libraries(module.name, public_access, to_cmake_modules(module.public_dependencies))
+            gen.target_link_libraries(module.name, private_access, to_cmake_modules(module.private_dependencies))
             gen.target_include_directories(module.name, public_access, [Path("code/public")])
             gen.target_include_directories(module.name, private_access, [Path("code/private")])
 
