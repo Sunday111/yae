@@ -74,6 +74,29 @@ public:
 
     void RemoveEntity(const EntityId entity_id);
 
+    using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
+
+    void ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback);
+
+    template <typename Callback>
+    void ForEach(const cppreflection::Type* type, Callback&& callback)
+    {
+        ForEach(
+            type,
+            &callback,
+            [](void* user_data, const EntityId entity_id)
+            {
+                auto& callback = *reinterpret_cast<Callback*>(user_data);  // NOLINT
+                return callback(entity_id);
+            });
+    }
+
+    template <typename Component, typename Callback>
+    void ForEach(Callback&& callback)
+    {
+        ForEach(cppreflection::GetTypeInfo<Component>(), std::forward<Callback>(callback));
+    }
+
 protected:
     void AddSystem(std::unique_ptr<ISystem> system);
 

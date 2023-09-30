@@ -46,7 +46,7 @@ void* App::AddComponent(const EntityId entity_id, const cppreflection::Type* typ
     auto& entity_info = entity_collection_.GetEntityInfo(entity_id);
     assert(!entity_info.components.contains(type));
 
-    const auto component_index = component_pool->Alloc();
+    const auto component_index = component_pool->Alloc(entity_id);
     auto& component_info = entity_info.components[type];
     component_info.pool_index = component_index;
     component_info.component = component_pool->Get(component_index);
@@ -94,5 +94,12 @@ void App::RemoveEntity(const EntityId entity_id)
         RemoveComponent(entity_id, type);
     }
     entity_collection_.DestroyEntity(entity_id);
+}
+
+void App::ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback)
+{
+    assert(components_pools_.contains(type));
+    auto& pool_ptr = components_pools_[type];
+    pool_ptr->ForEach(user_data, callback);
 }
 }  // namespace ecs

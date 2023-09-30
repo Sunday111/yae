@@ -1,11 +1,13 @@
 #pragma once
 
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "CppReflection/Type.hpp"
+#include "entity_id.hpp"
 
 namespace ecs
 {
@@ -13,24 +15,51 @@ class ComponentPool
 {
 public:
     using CellIndex = uint32_t;
+    using ForEachComponentCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
+
+    struct ComponentMetadata
+    {
+        ecs::EntityId entity_id;
+    };
 
 private:
     struct Page
     {
+        using BitsetPart = uint64_t;
         static constexpr CellIndex kCapacity = 1024;
+        static constexpr size_t kBitsetPartBitsCount = 8 * sizeof(BitsetPart);
+        static constexpr size_t kBitsetPartsCount = kCapacity / kBitsetPartBitsCount;
         std::unique_ptr<uint8_t[]> data;  // NOLINT
         uint8_t* aligned = nullptr;
+        std::array<ComponentMetadata, kCapacity> metadata;
+        std::array<uint64_t, kCapacity / 64> has_value;
+        uint16_t part_has_value = 0;
+        static_assert(sizeof(part_has_value) * 8 == kBitsetPartsCount);
     };
 
 public:
     explicit ComponentPool(const cppreflection::Type*);
 
-    CellIndex Alloc();
+    CellIndex Alloc(const EntityId entity_id);
     void Free(const CellIndex cell_index);
     void* Get(const CellIndex cell_index)
     {
         const auto [page_index, index_on_page] = DecomposeChecked(cell_index);
         return GetCellPtr(page_index, index_on_page);
+    }
+
+    void ForEach(void* user_data, ForEachComponentCallbackRaw callback);
+
+    template <typename Callback>
+    void ForEach(Callback&& callback)
+    {
+        ForEach(
+            &callback,
+            [](void* user_data, const EntityId entity_id)
+            {
+                auto& callback = (*reinterpret_cast<Callback*>(user_data));  // NOLINT
+                callback(entity_id);
+            });
     }
 
 private:

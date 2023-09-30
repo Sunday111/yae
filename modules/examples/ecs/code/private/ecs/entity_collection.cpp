@@ -67,7 +67,7 @@ EntityId EntityCollection::GenerateId()
     while (id_to_index_.contains(next_id_))
     {
         const auto invalid_id = EntityId{}.GetValue();
-        next_id_ = EntityId::FromValue(static_cast<uint32_t>((next_id_.GetValue() + 1) % invalid_id));
+        next_id_ = EntityId::FromValue(static_cast<EntityId::Repr>((next_id_.GetValue() + 1) % invalid_id));
     }
     return next_id_;
 }
