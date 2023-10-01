@@ -42,6 +42,32 @@ public:
 
     void* AddComponent(const EntityId entity_id, const cppreflection::Type* type);
 
+    template <typename... Components>
+    std::tuple<Components*...> AddComponents(const EntityId entity_id)
+    {
+        const size_t count = sizeof...(Components);
+        std::array<const cppreflection::Type*, count> types{cppreflection::GetTypeInfo<Components>()...};
+        std::array<void*, count> components;
+        AddComponents(entity_id, types.data(), components.data(), count);
+
+        return [&]<size_t... indices>(std::index_sequence<indices...>)
+        {
+            return std::make_tuple(reinterpret_cast<Components*>(components[indices])...);  // NOLINT
+        }
+        (std::make_index_sequence<count>());
+    }
+
+    void
+    AddComponents(const EntityId entity_id, const cppreflection::Type** types, void** components, const size_t count);
+
+    template <typename... Components>
+    EntityId CreateEntityWithComponents()
+    {
+        const auto entity_id = CreateEntity();
+        AddComponents<Components...>(entity_id);
+        return entity_id;
+    }
+
     template <typename Component>
     void RemoveComponent(const EntityId entity_id)
     {

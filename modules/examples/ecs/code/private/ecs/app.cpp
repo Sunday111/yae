@@ -24,7 +24,7 @@ ComponentTypeId App::MakeComponentTypeId()
 
 ComponentPool* App::GetComponentPool(const cppreflection::Type* type)
 {
-    assert(component_pools_.contains(type));
+    assert(components_pools_.contains(type));
     return components_pools_[type].get();
 }
 
@@ -52,12 +52,31 @@ void* App::AddComponent(const EntityId entity_id, const cppreflection::Type* typ
     auto& entity_info = entity_collection_.GetEntityInfo(entity_id);
     assert(!entity_info.components.contains(type));
 
-    const auto component_index = component_pool->Alloc(entity_id);
     auto& component_info = entity_info.components[type];
-    component_info.pool_index = component_index;
-    component_info.component = component_pool->Get(component_index);
+    component_info.pool_index = component_pool->Alloc(entity_id);
+    component_info.component = component_pool->Get(component_info.pool_index);
 
     return component_info.component;
+}
+
+void App::AddComponents(
+    const EntityId entity_id,
+    const cppreflection::Type** types,
+    void** components,
+    const size_t count)
+{
+    auto& entity_info = entity_collection_.GetEntityInfo(entity_id);
+    for (size_t i = 0; i != count; ++i)
+    {
+        const auto type = types[i];  // NOLINT
+        assert(!entity_info.components.contains(type));
+        assert(components_pools_.contains(type));
+        auto& component_pool = components_pools_[type];
+        auto& component_info = entity_info.components[type];
+        component_info.pool_index = component_pool->Alloc(entity_id);
+        component_info.component = component_pool->Get(component_info.pool_index);
+        components[i] = component_info.component;  // NOLINT
+    }
 }
 
 void App::RemoveComponent(const EntityId entity_id, const cppreflection::Type* type)

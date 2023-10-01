@@ -6,6 +6,11 @@
 #include "test_app.hpp"
 #include "test_components.hpp"
 
+using A = TestComponentA;
+using B = TestComponentB;
+using C = TestComponentC;
+using D = TestComponentD;
+
 TEST(AppTest, StressTest)  // NOLINT
 {
     TestApp app;
@@ -13,10 +18,10 @@ TEST(AppTest, StressTest)  // NOLINT
 
     std::vector<ecs::EntityId> entities;
     std::vector<const cppreflection::Type*> component_types{
-        cppreflection::GetTypeInfo<TestComponentA>(),
-        cppreflection::GetTypeInfo<TestComponentB>(),
-        cppreflection::GetTypeInfo<TestComponentC>(),
-        cppreflection::GetTypeInfo<TestComponentD>()};
+        cppreflection::GetTypeInfo<A>(),
+        cppreflection::GetTypeInfo<B>(),
+        cppreflection::GetTypeInfo<C>(),
+        cppreflection::GetTypeInfo<D>()};
     ankerl::unordered_dense::map<ecs::EntityId, ankerl::unordered_dense::set<const cppreflection::Type*>>
         entities_components;
     constexpr unsigned kSeed = 0;
@@ -173,19 +178,19 @@ TEST(AppTest, CreateEntityAddComponent)  // NOLINT
     const auto entity_id = app.CreateEntity();
 
     {
-        ASSERT_FALSE(app.HasComponent<TestComponentA>(entity_id));
-        auto& component = app.AddComponent<TestComponentA>(entity_id);
+        ASSERT_FALSE(app.HasComponent<A>(entity_id));
+        auto& component = app.AddComponent<A>(entity_id);
         component.value = 42;
-        ASSERT_TRUE(app.HasComponent<TestComponentA>(entity_id));
+        ASSERT_TRUE(app.HasComponent<A>(entity_id));
     }
 
     {
-        auto& component = app.GetComponent<TestComponentA>(entity_id);
+        auto& component = app.GetComponent<A>(entity_id);
         ASSERT_EQ(component.value, 42);
     }
 
-    app.RemoveComponent<TestComponentA>(entity_id);
-    ASSERT_FALSE(app.HasComponent<TestComponentA>(entity_id));
+    app.RemoveComponent<A>(entity_id);
+    ASSERT_FALSE(app.HasComponent<A>(entity_id));
     app.RemoveEntity(entity_id);
     ASSERT_FALSE(app.HasEntity(entity_id));
 }
@@ -195,17 +200,19 @@ TEST(AppTest, ForEachComponent)  // NOLINT
     TestApp app;
     app.Initialize();
 
-    const auto e_ab = app.CreateEntity();
-    app.AddComponent<TestComponentA>(e_ab);
-    app.AddComponent<TestComponentB>(e_ab);
-
-    const auto e_bc = app.CreateEntity();
-    app.AddComponent<TestComponentB>(e_bc);
-    app.AddComponent<TestComponentC>(e_bc);
-
-    const auto e_cd = app.CreateEntity();
-    app.AddComponent<TestComponentC>(e_cd);
-    app.AddComponent<TestComponentD>(e_cd);
+    const auto e_a = app.CreateEntityWithComponents<A>();
+    const auto e_b = app.CreateEntityWithComponents<B>();
+    const auto e_c = app.CreateEntityWithComponents<C>();
+    const auto e_d = app.CreateEntityWithComponents<D>();
+    const auto e_ab = app.CreateEntityWithComponents<A, B>();
+    const auto e_bc = app.CreateEntityWithComponents<B, C>();
+    const auto e_cd = app.CreateEntityWithComponents<C, D>();
+    const auto e_da = app.CreateEntityWithComponents<D, A>();
+    const auto e_abc = app.CreateEntityWithComponents<A, B, C>();
+    const auto e_bcd = app.CreateEntityWithComponents<B, C, D>();
+    const auto e_cda = app.CreateEntityWithComponents<C, D, A>();
+    const auto e_dab = app.CreateEntityWithComponents<D, A, B>();
+    const auto e_abcd = app.CreateEntityWithComponents<A, B, C, D>();
 
     auto gather_entities = [&]<typename... Component>(std::tuple<Component...> types)
     {
@@ -217,6 +224,7 @@ TEST(AppTest, ForEachComponent)  // NOLINT
                 entities.push_back(entity_id);
                 return true;
             });
+        std::ranges::sort(entities, std::less{});
         return entities;
     };
 
@@ -224,14 +232,21 @@ TEST(AppTest, ForEachComponent)  // NOLINT
     {
         std::vector<ecs::EntityId> entities;
         (entities.push_back(args), ...);
+        std::ranges::sort(entities, std::less{});
         return entities;
     };
 
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentA>{}), make_vector(e_ab));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentA, TestComponentB>{}), make_vector(e_ab));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentB>{}), make_vector(e_ab, e_bc));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentB, TestComponentC>{}), make_vector(e_bc));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentC>{}), make_vector(e_bc, e_cd));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentC, TestComponentD>{}), make_vector(e_cd));
-    ASSERT_EQ(gather_entities(std::tuple<TestComponentD>{}), make_vector(e_cd));
+    ASSERT_EQ(gather_entities(std::tuple<A>{}), make_vector(e_a, e_ab, e_da, e_abc, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<B>{}), make_vector(e_b, e_ab, e_bc, e_abc, e_bcd, e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<C>{}), make_vector(e_c, e_bc, e_cd, e_abc, e_bcd, e_cda, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<D>{}), make_vector(e_d, e_cd, e_da, e_bcd, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<A, B>{}), make_vector(e_ab, e_abc, e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<B, C>{}), make_vector(e_bc, e_abc, e_bcd, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<C, D>{}), make_vector(e_cd, e_bcd, e_cda, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<D, A>{}), make_vector(e_da, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<A, B, C>{}), make_vector(e_abc, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<B, C, D>{}), make_vector(e_bcd, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<C, D, A>{}), make_vector(e_cda, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<D, A, B>{}), make_vector(e_dab, e_abcd));
+    ASSERT_EQ(gather_entities(std::tuple<A, B, C, D>{}), make_vector(e_abcd));
 }
