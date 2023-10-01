@@ -1,6 +1,5 @@
 #include <random>
 
-#include "ecs/big_bitset.hpp"
 #include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "test_app.hpp"

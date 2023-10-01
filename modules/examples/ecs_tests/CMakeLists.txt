@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.20)
 include(set_compiler_options)
 set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/app_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/entity_component_lookup_tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/test_app.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/test_app.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/test_components.hpp)

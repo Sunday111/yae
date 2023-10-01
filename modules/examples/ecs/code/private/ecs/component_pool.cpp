@@ -1,4 +1,4 @@
-#include "ecs/component_pool.hpp"
+#include "ecs/internal/component_pool.hpp"
 
 #include <bit>
 #include <cassert>
@@ -6,7 +6,7 @@
 #include "EverydayTools/Bitset/BitsetAdapter.hpp"
 #include "EverydayTools/Bitset/BitsetArrayAdapter.hpp"
 
-namespace ecs
+namespace ecs::internal
 {
 ComponentPool::ComponentPool(const cppreflection::Type* type) : type_(type)
 {
@@ -95,4 +95,4 @@ void ComponentPool::ForEach(void* user_data, ForEachComponentCallbackRaw callbac
     }
 }
 
-}  // namespace ecs
+}  // namespace ecs::internal

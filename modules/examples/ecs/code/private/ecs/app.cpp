@@ -1,6 +1,6 @@
 #include "ecs/app.hpp"
 
-#include "ecs/component_pool.hpp"
+#include "ecs/internal/component_pool.hpp"
 #include "ecs/isystem.hpp"
 
 namespace ecs
@@ -22,7 +22,7 @@ ComponentTypeId App::MakeComponentTypeId()
     return result;
 }
 
-ComponentPool* App::GetComponentPool(const cppreflection::Type* type)
+internal::ComponentPool* App::GetComponentPool(const cppreflection::Type* type)
 {
     assert(components_pools_.contains(type));
     return components_pools_[type].get();
@@ -31,7 +31,7 @@ ComponentPool* App::GetComponentPool(const cppreflection::Type* type)
 void App::RegisterComponent(const cppreflection::Type* type)
 {
     assert(!components_pools_.contains(type));
-    components_pools_[type] = std::make_unique<ComponentPool>(type);
+    components_pools_[type] = std::make_unique<internal::ComponentPool>(type);
 
     assert(!components_ids_.contains(type));
     components_ids_[type] = MakeComponentTypeId();
@@ -128,10 +128,14 @@ void App::ForEach(const cppreflection::Type* type, void* user_data, ForEachCallb
     pool_ptr->ForEach(user_data, callback);
 }
 
-void App::ForEach(ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback)
+void App::ForEach(
+    internal::ComponentPool** pools,
+    const size_t pools_count,
+    void* user_data,
+    ForEachCallbackRaw callback)
 {
-    const auto span = std::span<ComponentPool*>(pools, pools_count);
-    std::ranges::sort(span, std::less{}, &ComponentPool::GetUsedCount);
+    const auto span = std::span<internal::ComponentPool*>(pools, pools_count);
+    std::ranges::sort(span, std::less{}, &internal::ComponentPool::GetUsedCount);
 
     // Walk entities in the smallest component pool and check that they are present in others
     span.front()->ForEach(

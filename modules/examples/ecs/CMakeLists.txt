@@ -5,12 +5,12 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/ecs/component_pool.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/private/ecs/entity_collection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/app.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/big_bitset.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/component_pool.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/component_type_id.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/constants.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_collection.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_id.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/internal/component_pool.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/internal/entity_has_component.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/isystem.hpp)
 add_library(ecs STATIC ${module_source_files})
 set_generic_compiler_options(ecs PRIVATE)

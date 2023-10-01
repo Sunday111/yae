@@ -7,15 +7,20 @@
 #include "CppReflection/GetTypeInfo.hpp"
 #include "CppReflection/Type.hpp"
 #include "EverydayTools/Bitset/DynamicBitset.hpp"
+#include "EverydayTools/Concepts/callable.hpp"
 #include "EverydayTools/GUID.hpp"
 #include "ankerl/unordered_dense.h"
 #include "component_type_id.hpp"
 #include "entity_collection.hpp"
 
+namespace ecs::internal
+{
+class ComponentPool;
+}
+
 namespace ecs
 {
 class ISystem;
-class ComponentPool;
 
 class App
 {
@@ -103,9 +108,10 @@ public:
     using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
 
     void ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback);
-    void ForEach(ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback);
+    void
+    ForEach(internal::ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback);
 
-    template <typename Callback>
+    template <edt::Callable<bool, EntityId> Callback>
     void ForEach(const cppreflection::Type* type, Callback&& callback)
     {
         ForEach(
@@ -118,13 +124,13 @@ public:
             });
     }
 
-    template <typename Component, typename Callback>
+    template <typename Component, edt::Callable<bool, EntityId> Callback>
     void ForEach(Callback&& callback)
     {
         ForEach(cppreflection::GetTypeInfo<Component>(), std::forward<Callback>(callback));
     }
 
-    template <typename Callback, typename... Components>
+    template <edt::Callable<bool, EntityId> Callback, typename... Components>
     void ForEach(std::tuple<Components...>, Callback&& callback)
     {
         constexpr size_t types_count = sizeof...(Components);
@@ -135,7 +141,7 @@ public:
         }
         else
         {
-            std::array<ComponentPool*, types_count> pools{GetComponentPool<Components>()...};
+            std::array<internal::ComponentPool*, types_count> pools{GetComponentPool<Components>()...};
             ForEach(
                 pools.data(),
                 types_count,
@@ -154,12 +160,12 @@ protected:
     void RegisterComponent(const cppreflection::Type* type);
 
     template <typename T>
-    ComponentPool* GetComponentPool()
+    internal::ComponentPool* GetComponentPool()
     {
         return GetComponentPool(cppreflection::GetTypeInfo<T>());
     }
 
-    ComponentPool* GetComponentPool(const cppreflection::Type* type);
+    internal::ComponentPool* GetComponentPool(const cppreflection::Type* type);
 
     template <typename T>
     void RegisterComponent()
@@ -172,7 +178,8 @@ private:
 
 private:
     std::vector<std::unique_ptr<ISystem>> systems_;
-    ankerl::unordered_dense::map<const cppreflection::Type*, std::unique_ptr<ComponentPool>> components_pools_;
+    ankerl::unordered_dense::map<const cppreflection::Type*, std::unique_ptr<internal::ComponentPool>>
+        components_pools_;
     ankerl::unordered_dense::map<const cppreflection::Type*, ComponentTypeId> components_ids_;
     ComponentTypeId next_component_type_id_ = ComponentTypeId::FromValue(0);
     EntityCollection entity_collection_;
