@@ -30,14 +30,9 @@ ComponentPool::CellIndex ComponentPool::Alloc(const EntityId entity_id)
     first_free_ = cell->next;  // Remember next free
     type_->GetSpecialMembers().defaultConstructor(cell);
 
-    // metadata
-    {
-        auto& page = pages_[page_index];
-        page.metadata[index_on_page].entity_id = entity_id;
-        edt::BitsetAdapter<uint16_t>(page.part_has_value).Set(index_on_page / Page::kBitsetPartBitsCount, true);
-        edt::BitsetArrayAdapter<Page::BitsetPart>(std::span(page.has_value)).Set(index_on_page, true);
-    }
-
+    auto& page = pages_[page_index];
+    page.metadata[index_on_page].entity_id = entity_id;
+    page.component_exists.Set(index_on_page, true);
     used_count_++;
 
     return cell_index;
@@ -52,29 +47,9 @@ void ComponentPool::Free(const CellIndex cell_index)
     empty_cell->next = first_free_;
     first_free_ = static_cast<CellIndex>(cell_index);
 
-    // metadata
-    {
-        auto& page = pages_[page_index];
-        page.metadata[index_on_page].entity_id = EntityId{};
-
-        const auto part_index = index_on_page / Page::kBitsetPartBitsCount;
-        const auto index_in_part = index_on_page % Page::kBitsetPartBitsCount;
-
-        auto& part = page.has_value[part_index];
-        const edt::BitsetAdapter<Page::BitsetPart> part_adapter(part);
-
-        assert(part_adapter.Get(index_in_part));
-        part_adapter.Set(index_in_part, false);
-
-        // part became empty, update top level bitset
-        if (part == 0)
-        {
-            assert(page.part_has_value);
-            const edt::BitsetAdapter<uint16_t> parts_adapter(page.part_has_value);
-            parts_adapter.Set(part_index, false);
-        }
-    }
-
+    auto& page = pages_[page_index];
+    page.metadata[index_on_page].entity_id = EntityId{};
+    page.component_exists.Set(index_on_page, false);
     --used_count_;
 }
 
@@ -106,23 +81,17 @@ void ComponentPool::ForEach(void* user_data, ForEachComponentCallbackRaw callbac
 {
     for (size_t page_index = 0; page_index != pages_.size(); ++page_index)
     {
-        const auto& page = pages_[page_index];
-        if (page.part_has_value == 0) continue;
+        auto& page = pages_[page_index];
+        if (page.component_exists.IsEmpty()) continue;
 
-        edt::BitsetAdapter(page.part_has_value)
-            .ForEachBitWithReturn(
-                [&](const size_t part_index)
-                {
-                    const auto& part = page.has_value[part_index];
-                    if (part == 0) return true;
-                    return edt::BitsetAdapter(part).ForEachBitWithReturn(
-                        [&](const size_t bit_index)
-                        {
-                            const size_t index_on_page = part_index * Page::kBitsetPartBitsCount + bit_index;
-                            auto& component_metadata = page.metadata[index_on_page];
-                            return callback(user_data, component_metadata.entity_id);
-                        });
-                });
+        const bool should_continue = page.component_exists.ForEachBit(
+            [&](const size_t index_on_page)
+            {
+                auto& component_metadata = page.metadata[index_on_page];
+                return callback(user_data, component_metadata.entity_id);
+            });
+
+        if (!should_continue) break;
     }
 }
 
