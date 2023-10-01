@@ -38,6 +38,8 @@ ComponentPool::CellIndex ComponentPool::Alloc(const EntityId entity_id)
         edt::BitsetArrayAdapter<Page::BitsetPart>(std::span(page.has_value)).Set(index_on_page, true);
     }
 
+    used_count_++;
+
     return cell_index;
 }
 
@@ -72,6 +74,8 @@ void ComponentPool::Free(const CellIndex cell_index)
             parts_adapter.Set(part_index, false);
         }
     }
+
+    --used_count_;
 }
 
 void ComponentPool::AddPage()

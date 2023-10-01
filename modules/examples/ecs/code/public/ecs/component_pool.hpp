@@ -48,6 +48,16 @@ public:
         return GetCellPtr(page_index, index_on_page);
     }
 
+    inline const cppreflection::Type* GetType() const noexcept
+    {
+        return type_;
+    }
+
+    inline size_t GetUsedCount() const noexcept
+    {
+        return used_count_;
+    }
+
     void ForEach(void* user_data, ForEachComponentCallbackRaw callback);
 
     template <typename Callback>
@@ -58,7 +68,7 @@ public:
             [](void* user_data, const EntityId entity_id)
             {
                 auto& callback = (*reinterpret_cast<Callback*>(user_data));  // NOLINT
-                callback(entity_id);
+                return callback(entity_id);
             });
     }
 
@@ -109,6 +119,7 @@ private:
     size_t cell_size_ = 0;
     size_t cell_alignment_ = 0;
     std::vector<Page> pages_;  // NOLINT
+    size_t used_count_ = 0;
     CellIndex first_free_ = 0;
 };
 }  // namespace ecs

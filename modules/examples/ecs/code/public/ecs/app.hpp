@@ -77,6 +77,7 @@ public:
     using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
 
     void ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback);
+    void ForEach(ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback);
 
     template <typename Callback>
     void ForEach(const cppreflection::Type* type, Callback&& callback)
@@ -84,7 +85,7 @@ public:
         ForEach(
             type,
             &callback,
-            [](void* user_data, const EntityId entity_id)
+            [](void* user_data, const EntityId entity_id) -> bool
             {
                 auto& callback = *reinterpret_cast<Callback*>(user_data);  // NOLINT
                 return callback(entity_id);
@@ -97,10 +98,42 @@ public:
         ForEach(cppreflection::GetTypeInfo<Component>(), std::forward<Callback>(callback));
     }
 
+    template <typename Callback, typename... Components>
+    void ForEach(std::tuple<Components...>, Callback&& callback)
+    {
+        constexpr size_t types_count = sizeof...(Components);
+        static_assert(types_count != 0);
+        if constexpr (types_count == 1)
+        {
+            ForEach<Components...>(std::forward<Callback>(callback));
+        }
+        else
+        {
+            std::array<ComponentPool*, types_count> pools{GetComponentPool<Components>()...};
+            ForEach(
+                pools.data(),
+                types_count,
+                &callback,
+                [](void* user_data, const EntityId entity_id)
+                {
+                    auto& callback = *reinterpret_cast<Callback*>(user_data);  // NOLINT
+                    return callback(entity_id);
+                });
+        }
+    }
+
 protected:
     void AddSystem(std::unique_ptr<ISystem> system);
 
     void RegisterComponent(const cppreflection::Type* type);
+
+    template <typename T>
+    ComponentPool* GetComponentPool()
+    {
+        return GetComponentPool(cppreflection::GetTypeInfo<T>());
+    }
+
+    ComponentPool* GetComponentPool(const cppreflection::Type* type);
 
     template <typename T>
     void RegisterComponent()

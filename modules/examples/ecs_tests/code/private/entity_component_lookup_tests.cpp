@@ -87,22 +87,3 @@ void ForEachInt(Callback&& callback)
         ++value;
     }
 }
-
-TEST(EntityComponentLookupTest, FindEntitiesWithMultipleComponents)  // NOLINT
-{
-    std::array<ecs::EntityComponentLookup, 3> components;
-
-    std::ranges::sort(components, std::less{}, &ecs::EntityComponentLookup::GetSegmentsCount);
-
-    for (size_t segment_index = 0; segment_index < components.front().GetSegmentsCount(); ++segment_index)
-    {
-    }
-
-    ForEachInt(
-        [](int value)
-        {
-            if (value > 10) return false;
-            fmt::print("{}\n", value);
-            return true;
-        });
-}

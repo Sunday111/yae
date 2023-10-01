@@ -22,6 +22,12 @@ ComponentTypeId App::MakeComponentTypeId()
     return result;
 }
 
+ComponentPool* App::GetComponentPool(const cppreflection::Type* type)
+{
+    assert(component_pools_.contains(type));
+    return components_pools_[type].get();
+}
+
 void App::RegisterComponent(const cppreflection::Type* type)
 {
     assert(!components_pools_.contains(type));
@@ -101,5 +107,26 @@ void App::ForEach(const cppreflection::Type* type, void* user_data, ForEachCallb
     assert(components_pools_.contains(type));
     auto& pool_ptr = components_pools_[type];
     pool_ptr->ForEach(user_data, callback);
+}
+
+void App::ForEach(ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback)
+{
+    const auto span = std::span<ComponentPool*>(pools, pools_count);
+    std::ranges::sort(span, std::less{}, &ComponentPool::GetUsedCount);
+
+    // Walk entities in the smallest component pool and check that they are present in others
+    span.front()->ForEach(
+        [&](const EntityId entity_id)
+        {
+            for (size_t i = 1; i != span.size(); ++i)
+            {
+                if (!HasComponent(entity_id, span[i]->GetType()))
+                {
+                    return true;  // conitnue iteration
+                }
+            }
+
+            return callback(user_data, entity_id);
+        });
 }
 }  // namespace ecs
