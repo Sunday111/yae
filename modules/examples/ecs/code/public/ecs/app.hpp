@@ -16,11 +16,17 @@
 namespace ecs::internal
 {
 class ComponentPool;
-}
+
+}  // namespace ecs::internal
 
 namespace ecs
 {
 class ISystem;
+
+template <typename... ComponentTypes>
+struct EntitiesIterator
+{
+};
 
 class App
 {
@@ -108,7 +114,7 @@ public:
     using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
 
     void ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback);
-    void
+    bool
     ForEach(internal::ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback);
 
     template <edt::Callable<bool, EntityId> Callback>

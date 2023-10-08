@@ -159,7 +159,7 @@ TEST(AppTest, StressTest)  // NOLINT
             std::ranges::sort(comp_entities_expected, std::less{});
             std::ranges::sort(comp_entities_actual, std::less{});
 
-            ASSERT_EQ(comp_entities_actual, comp_entities_expected);
+            ASSERT_EQ(comp_entities_actual, comp_entities_expected) << "action_index: " << action_index;
         }
     }
 

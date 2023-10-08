@@ -8,6 +8,44 @@
 
 namespace ecs::internal
 {
+
+ComponentPoolIterator::ComponentPoolIterator(ComponentPool& pool) : pool_(pool)
+{
+    page_index_ = 0;
+    if (page_index_ < pool_.pages_.size())
+    {
+        page_iterator_ = EntityHasComponentIteratorType(pool_.pages_[page_index_].component_exists);
+    }
+}
+
+std::optional<EntityId> ComponentPoolIterator::Next()
+{
+    if (page_iterator_.has_value())
+    {
+        if (auto maybe_index = page_iterator_->Next(); maybe_index.has_value())
+        {
+            auto& page = pool_.pages_[page_index_];
+            return page.metadata[*maybe_index].entity_id;
+        }
+
+        page_iterator_ = std::nullopt;
+    }
+    else
+    {
+        if (++page_index_ >= pool_.pages_.size())
+        {
+            page_index_ = pool_.pages_.size();
+            return std::nullopt;
+        }
+        page_iterator_ = EntityHasComponentIteratorType(pool_.pages_[page_index_].component_exists);
+    }
+
+    return Next();
+}
+}  // namespace ecs::internal
+
+namespace ecs::internal
+{
 ComponentPool::ComponentPool(const cppreflection::Type* type) : type_(type)
 {
     cell_size_ = std::max(type_->GetInstanceSize(), sizeof(EmptyCell));
@@ -55,8 +93,8 @@ void ComponentPool::Free(const CellIndex cell_index)
 
 void ComponentPool::AddPage()
 {
-    assert(first_free_ == pages_.size() * Page::kCapacity);
-    const size_t bytes_count = cell_size_ * (Page::kCapacity + 1);  // +1 for alignment
+    assert(first_free_ == pages_.size() * kComponentPoolPageSize);
+    const size_t bytes_count = cell_size_ * (kComponentPoolPageSize + 1);  // +1 for alignment
 
     const auto page_index = static_cast<CellIndex>(pages_.size());
     auto& page = pages_.emplace_back();
@@ -71,27 +109,9 @@ void ComponentPool::AddPage()
     page.aligned = reinterpret_cast<uint8_t*>(aligned_address);  // NOLINT
 
     auto next_free = first_free_;
-    for (CellIndex index_on_page = 0; index_on_page != Page::kCapacity; ++index_on_page)
+    for (CellIndex index_on_page = 0; index_on_page != kComponentPoolPageSize; ++index_on_page)
     {
         GetFreeCell(page_index, index_on_page)->next = ++next_free;
-    }
-}
-
-void ComponentPool::ForEach(void* user_data, ForEachComponentCallbackRaw callback)
-{
-    for (size_t page_index = 0; page_index != pages_.size(); ++page_index)
-    {
-        auto& page = pages_[page_index];
-        if (page.component_exists.IsEmpty()) continue;
-
-        const bool should_continue = page.component_exists.ForEachBit(
-            [&](const size_t index_on_page)
-            {
-                auto& component_metadata = page.metadata[index_on_page];
-                return callback(user_data, component_metadata.entity_id);
-            });
-
-        if (!should_continue) break;
     }
 }
 

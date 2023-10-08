@@ -125,31 +125,42 @@ void App::ForEach(const cppreflection::Type* type, void* user_data, ForEachCallb
 {
     assert(components_pools_.contains(type));
     auto& pool_ptr = components_pools_[type];
-    pool_ptr->ForEach(user_data, callback);
+    pool_ptr->ForEach(std::bind_front(callback, user_data));
 }
 
-void App::ForEach(
+bool App::ForEach(
     internal::ComponentPool** pools,
     const size_t pools_count,
     void* user_data,
     ForEachCallbackRaw callback)
 {
     const auto span = std::span<internal::ComponentPool*>(pools, pools_count);
-    std::ranges::sort(span, std::less{}, &internal::ComponentPool::GetUsedCount);
 
-    // Walk entities in the smallest component pool and check that they are present in others
-    span.front()->ForEach(
-        [&](const EntityId entity_id)
+    // sort component pools by number of allocated elements
+    std::ranges::sort(span, std::less{}, &internal::ComponentPool::GetAllocatedCount);
+
+    // iterate entities in the smallest pool and check if they have other required components
+    internal::ComponentPoolIterator smallest_pool_iterator(*span.front());
+    const auto subspan = span.subspan(1);
+    while (auto maybe_entity_id = smallest_pool_iterator.Next())
+    {
+        const auto entity_id = *maybe_entity_id;
+        bool has_all_components = true;
+        for (internal::ComponentPool* pool : subspan)
         {
-            for (size_t i = 1; i != span.size(); ++i)
+            if (!HasComponent(entity_id, pool->GetType()))
             {
-                if (!HasComponent(entity_id, span[i]->GetType()))
-                {
-                    return true;  // conitnue iteration
-                }
+                has_all_components = false;
+                break;
             }
+        }
 
-            return callback(user_data, entity_id);
-        });
+        if (has_all_components && !callback(user_data, *maybe_entity_id))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 }  // namespace ecs
