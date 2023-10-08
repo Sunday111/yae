@@ -130,7 +130,7 @@ public:
         return page_index * kComponentPoolPageSize + index_on_page;
     }
 
-    ComponentPool& pool_;
+    ComponentPool* pool_;
     size_t page_index_ = 0;
     std::optional<EntityHasComponentIteratorType> page_iterator_;
 };

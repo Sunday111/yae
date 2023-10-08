@@ -21,8 +21,15 @@ TEST(AppTest, StressTest)  // NOLINT
         cppreflection::GetTypeInfo<B>(),
         cppreflection::GetTypeInfo<C>(),
         cppreflection::GetTypeInfo<D>()};
+    std::vector<ecs::internal::ComponentPool*> component_pools;
+    component_pools.reserve(component_types.size() * 2);
+    for (auto component_type : component_types) component_pools.push_back(app.GetComponentPool(component_type));
+    for (auto component_type : component_types) component_pools.push_back(app.GetComponentPool(component_type));
+
     ankerl::unordered_dense::map<ecs::EntityId, ankerl::unordered_dense::set<const cppreflection::Type*>>
-        entities_components;
+        entities_to_components;
+    ankerl::unordered_dense::map<const cppreflection::Type*, ankerl::unordered_dense::set<ecs::EntityId>>
+        components_to_entities;
     constexpr unsigned kSeed = 0;
     std::mt19937_64 random_generator(kSeed);  // NOLINT
     std::uniform_int_distribution<size_t> index_distribution;
@@ -41,10 +48,46 @@ TEST(AppTest, StressTest)  // NOLINT
     size_t delete_entity_events = 0;
     size_t add_component_events = 0;
     size_t remove_component_events = 0;
-    std::vector<ecs::EntityId> comp_entities_actual;
-    std::vector<ecs::EntityId> comp_entities_expected;
+    ankerl::unordered_dense::set<ecs::EntityId> comp_entities_actual;
+    ankerl::unordered_dense::set<ecs::EntityId> comp_entities_expected;
 
-    for (size_t action_index = 0; action_index != 10'000; ++action_index)
+    auto test_component_lookup = [&](const size_t components_count)
+    {
+        assert(components_count <= component_types.size());
+        for (size_t shift = 0; shift != component_types.size(); ++shift)
+        {
+            comp_entities_actual.clear();
+
+            auto pool_span = std::span(component_pools).subspan(shift, components_count);
+
+            ecs::EntitiesIterator_ErasedType iterator(app, pool_span);
+            while (auto opt = iterator.Next())
+            {
+                comp_entities_actual.insert(*opt);
+            }
+
+            comp_entities_expected = components_to_entities[pool_span.front()->GetType()];
+            for (const auto component_pool : pool_span.subspan(1))
+            {
+                auto& entities_with_component = components_to_entities[component_pool->GetType()];
+                for (auto it = comp_entities_expected.begin(); it != comp_entities_expected.end();)
+                {
+                    if (!entities_with_component.contains(*it))
+                    {
+                        it = comp_entities_expected.erase(it);
+                    }
+                    else
+                    {
+                        ++it;
+                    }
+                }
+            }
+
+            ASSERT_EQ(comp_entities_actual, comp_entities_expected);
+        }
+    };
+
+    for (size_t action_index = 0; action_index != 1'000'000; ++action_index)
     {
         const size_t action = entities.empty() ? 0 : index_distribution(random_generator) % 10;
 
@@ -76,9 +119,13 @@ TEST(AppTest, StressTest)  // NOLINT
                 app.RemoveEntity(entity_id);
                 ASSERT_FALSE(app.HasEntity(entity_id));
 
-                if (entities_components.contains(entity_id))
+                if (entities_to_components.contains(entity_id))
                 {
-                    entities_components.erase(entity_id);
+                    for (auto comp : entities_to_components[entity_id])
+                    {
+                        components_to_entities[comp].erase(entity_id);
+                    }
+                    entities_to_components.erase(entity_id);
                 }
 
                 swap_remove(entities, index);
@@ -97,7 +144,7 @@ TEST(AppTest, StressTest)  // NOLINT
             const size_t component_index = index_distribution(random_generator) % component_types.size();
             const cppreflection::Type* component_type = component_types[component_index];
 
-            auto& entity_components = entities_components[entity_id];
+            auto& entity_components = entities_to_components[entity_id];
             if (entity_components.contains(component_type))
             {
                 ASSERT_TRUE(app.HasComponent(entity_id, component_type));
@@ -108,6 +155,8 @@ TEST(AppTest, StressTest)  // NOLINT
                 app.AddComponent(entity_id, component_type);
                 ASSERT_TRUE(app.HasComponent(entity_id, component_type));
                 entity_components.insert(component_type);
+
+                components_to_entities[component_type].insert(entity_id);
             }
             break;
         }
@@ -119,7 +168,7 @@ TEST(AppTest, StressTest)  // NOLINT
             const ecs::EntityId entity_id = entities[index_distribution(random_generator) % entities.size()];
             const size_t component_index = index_distribution(random_generator) % component_types.size();
             const cppreflection::Type* component_type = component_types[component_index];
-            auto& entity_components = entities_components[entity_id];
+            auto& entity_components = entities_to_components[entity_id];
 
             if (entity_components.contains(component_type))
             {
@@ -127,6 +176,7 @@ TEST(AppTest, StressTest)  // NOLINT
                 app.RemoveComponent(entity_id, component_type);
                 ASSERT_FALSE(app.HasComponent(entity_id, component_type));
                 entity_components.erase(component_type);
+                components_to_entities[component_type].erase(entity_id);
             }
             else
             {
@@ -136,38 +186,21 @@ TEST(AppTest, StressTest)  // NOLINT
         }
         }
 
-        for (const auto component_type : component_types)
+        // Expensive check, do it sometimes
+        if (action_index % 50'000 == 0)
         {
-            comp_entities_actual.clear();
-            app.ForEach(
-                component_type,
-                [&](const ecs::EntityId entity_id)
-                {
-                    comp_entities_actual.push_back(entity_id);
-                    return true;
-                });
-
-            comp_entities_expected.clear();
-            for (const auto entity_id : entities)
-            {
-                if (entities_components[entity_id].contains(component_type))
-                {
-                    comp_entities_expected.push_back(entity_id);
-                }
-            }
-
-            std::ranges::sort(comp_entities_expected, std::less{});
-            std::ranges::sort(comp_entities_actual, std::less{});
-
-            ASSERT_EQ(comp_entities_actual, comp_entities_expected) << "action_index: " << action_index;
+            test_component_lookup(1);
+            test_component_lookup(2);
+            test_component_lookup(3);
+            test_component_lookup(4);
         }
     }
 
-    fmt::print("entities count: {}\n", entities.size());
-    fmt::print("\tcreate entity: {}\n", create_entity_events);
-    fmt::print("\tdelete entity events: {}\n", delete_entity_events);
-    fmt::print("\tadd component events: {}\n", add_component_events);
-    fmt::print("\tremove component events: {}\n", remove_component_events);
+    fmt::print("final entities count: {}\n", entities.size());
+    fmt::print("create entity: {}\n", create_entity_events);
+    fmt::print("delete entity events: {}\n", delete_entity_events);
+    fmt::print("add component events: {}\n", add_component_events);
+    fmt::print("remove component events: {}\n", remove_component_events);
 }
 
 TEST(AppTest, CreateEntityAddComponent)  // NOLINT

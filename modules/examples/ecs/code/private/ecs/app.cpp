@@ -1,10 +1,48 @@
 #include "ecs/app.hpp"
 
-#include "ecs/internal/component_pool.hpp"
 #include "ecs/isystem.hpp"
 
 namespace ecs
 {
+
+EntitiesIterator_ErasedType::EntitiesIterator_ErasedType(App& app, std::span<internal::ComponentPool*> pools)
+    : pools_(pools),
+      app_(&app)
+{
+    std::ranges::sort(pools_, std::less{}, &internal::ComponentPool::GetAllocatedCount);
+    if (pools_.size() > 0)
+    {
+        smallest_pool_iterator_ = internal::ComponentPoolIterator(*pools_.front());
+    }
+}
+
+std::optional<EntityId> EntitiesIterator_ErasedType::Next()
+{
+    if (smallest_pool_iterator_.has_value())
+    {
+        while (auto opt = smallest_pool_iterator_->Next())
+        {
+            const auto entity_id = *opt;
+            bool has_all_components = true;
+            for (size_t index = 1; index < pools_.size(); ++index)
+            {
+                auto pool = pools_[index];
+                if (!app_->HasComponent(entity_id, pool->GetType()))
+                {
+                    has_all_components = false;
+                    break;
+                }
+            }
+
+            if (has_all_components)
+            {
+                return entity_id;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
 
 App::App() = default;
 App::~App() = default;
@@ -134,28 +172,10 @@ bool App::ForEach(
     void* user_data,
     ForEachCallbackRaw callback)
 {
-    const auto span = std::span<internal::ComponentPool*>(pools, pools_count);
-
-    // sort component pools by number of allocated elements
-    std::ranges::sort(span, std::less{}, &internal::ComponentPool::GetAllocatedCount);
-
-    // iterate entities in the smallest pool and check if they have other required components
-    internal::ComponentPoolIterator smallest_pool_iterator(*span.front());
-    const auto subspan = span.subspan(1);
-    while (auto maybe_entity_id = smallest_pool_iterator.Next())
+    EntitiesIterator_ErasedType iterator(*this, std::span<internal::ComponentPool*>(pools, pools_count));
+    while (auto opt = iterator.Next())
     {
-        const auto entity_id = *maybe_entity_id;
-        bool has_all_components = true;
-        for (internal::ComponentPool* pool : subspan)
-        {
-            if (!HasComponent(entity_id, pool->GetType()))
-            {
-                has_all_components = false;
-                break;
-            }
-        }
-
-        if (has_all_components && !callback(user_data, *maybe_entity_id))
+        if (!callback(user_data, *opt))
         {
             return false;
         }

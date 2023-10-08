@@ -11,11 +11,13 @@
 #include "EverydayTools/GUID.hpp"
 #include "ankerl/unordered_dense.h"
 #include "component_type_id.hpp"
+#include "ecs/internal/component_pool.hpp"
 #include "entity_collection.hpp"
 
 namespace ecs::internal
 {
 class ComponentPool;
+class ComponentPoolIterator;
 
 }  // namespace ecs::internal
 
@@ -23,9 +25,40 @@ namespace ecs
 {
 class ISystem;
 
-template <typename... ComponentTypes>
-struct EntitiesIterator
+class App;
+
+class EntitiesIterator_ErasedType
 {
+public:
+    EntitiesIterator_ErasedType(App& app, std::span<internal::ComponentPool*> pools);
+
+    std::optional<EntityId> Next();
+
+private:
+    std::span<internal::ComponentPool*> pools_;
+    App* app_ = nullptr;
+    std::optional<internal::ComponentPoolIterator> smallest_pool_iterator_;
+};
+
+template <typename... ComponentTypes>
+class EntitiesIterator
+{
+public:
+    explicit EntitiesIterator(App& app);
+
+    std::optional<EntityId> Next()
+    {
+        return type_erased_.Next();
+    }
+
+    std::span<internal::ComponentPool*> GetPools()
+    {
+        return pools_;
+    }
+
+private:
+    std::array<internal::ComponentPool*, sizeof...(ComponentTypes)> pools_;
+    EntitiesIterator_ErasedType type_erased_;
 };
 
 class App
@@ -139,6 +172,7 @@ public:
     template <edt::Callable<bool, EntityId> Callback, typename... Components>
     void ForEach(std::tuple<Components...>, Callback&& callback)
     {
+        EntitiesIterator<Components...> iterator(*this);
         constexpr size_t types_count = sizeof...(Components);
         static_assert(types_count != 0);
         if constexpr (types_count == 1)
@@ -160,18 +194,17 @@ public:
         }
     }
 
-protected:
-    void AddSystem(std::unique_ptr<ISystem> system);
-
-    void RegisterComponent(const cppreflection::Type* type);
-
     template <typename T>
     internal::ComponentPool* GetComponentPool()
     {
         return GetComponentPool(cppreflection::GetTypeInfo<T>());
     }
-
     internal::ComponentPool* GetComponentPool(const cppreflection::Type* type);
+
+protected:
+    void AddSystem(std::unique_ptr<ISystem> system);
+
+    void RegisterComponent(const cppreflection::Type* type);
 
     template <typename T>
     void RegisterComponent()
@@ -190,4 +223,11 @@ private:
     ComponentTypeId next_component_type_id_ = ComponentTypeId::FromValue(0);
     EntityCollection entity_collection_;
 };
+
+template <typename... ComponentTypes>
+EntitiesIterator<ComponentTypes...>::EntitiesIterator(App& app)
+    : pools_{app.GetComponentPool<ComponentTypes>()...},
+      type_erased_(app, pools_)
+{
+}
 }  // namespace ecs

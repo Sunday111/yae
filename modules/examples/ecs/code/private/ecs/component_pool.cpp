@@ -9,12 +9,12 @@
 namespace ecs::internal
 {
 
-ComponentPoolIterator::ComponentPoolIterator(ComponentPool& pool) : pool_(pool)
+ComponentPoolIterator::ComponentPoolIterator(ComponentPool& pool) : pool_(&pool)
 {
     page_index_ = 0;
-    if (page_index_ < pool_.pages_.size())
+    if (page_index_ < pool_->pages_.size())
     {
-        page_iterator_ = EntityHasComponentIteratorType(pool_.pages_[page_index_].component_exists);
+        page_iterator_ = EntityHasComponentIteratorType(pool_->pages_[page_index_].component_exists);
     }
 }
 
@@ -24,7 +24,7 @@ std::optional<EntityId> ComponentPoolIterator::Next()
     {
         if (auto maybe_index = page_iterator_->Next(); maybe_index.has_value())
         {
-            auto& page = pool_.pages_[page_index_];
+            auto& page = pool_->pages_[page_index_];
             return page.metadata[*maybe_index].entity_id;
         }
 
@@ -32,12 +32,12 @@ std::optional<EntityId> ComponentPoolIterator::Next()
     }
     else
     {
-        if (++page_index_ >= pool_.pages_.size())
+        if (++page_index_ >= pool_->pages_.size())
         {
-            page_index_ = pool_.pages_.size();
+            page_index_ = pool_->pages_.size();
             return std::nullopt;
         }
-        page_iterator_ = EntityHasComponentIteratorType(pool_.pages_[page_index_].component_exists);
+        page_iterator_ = EntityHasComponentIteratorType(pool_->pages_[page_index_].component_exists);
     }
 
     return Next();
