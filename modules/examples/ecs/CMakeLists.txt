@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 include(set_compiler_options)
 set(module_source_files
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/ecs/app.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/ecs/component_pool.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/ecs/entity_collection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/app.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/component_pool.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/entities_iterator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/private/entity_collection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/app.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/component_type_id.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/constants.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entities_iterator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_collection.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_id.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/internal/component_pool.hpp

@@ -1,5 +1,6 @@
 #include <random>
 
+#include "ecs/entities_iterator.hpp"
 #include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "test_app.hpp"
@@ -227,7 +228,7 @@ TEST(AppTest, CreateEntityAddComponent)  // NOLINT
     ASSERT_FALSE(app.HasEntity(entity_id));
 }
 
-TEST(AppTest, ForEachComponent)  // NOLINT
+TEST(AppTest, EntitiesIterator)  // NOLINT
 {
     TestApp app;
     app.Initialize();
@@ -246,39 +247,32 @@ TEST(AppTest, ForEachComponent)  // NOLINT
     const auto e_dab = app.CreateEntityWithComponents<D, A, B>();
     const auto e_abcd = app.CreateEntityWithComponents<A, B, C, D>();
 
-    auto gather_entities = [&]<typename... Component>(std::tuple<Component...> types)
+    auto gather = [&]<typename... Component>(std::tuple<Component...>)
     {
-        std::vector<ecs::EntityId> entities;
-        app.ForEach(
-            types,
-            [&](const ecs::EntityId entity_id)
-            {
-                entities.push_back(entity_id);
-                return true;
-            });
-        std::ranges::sort(entities, std::less{});
+        ecs::EntitiesIterator<Component...> iterator(app);
+        ankerl::unordered_dense::set<ecs::EntityId> entities;
+        while (auto opt = iterator.Next()) entities.insert(*opt);
         return entities;
     };
 
-    auto make_vector = [](auto... args)
+    auto make = [](auto... args)
     {
-        std::vector<ecs::EntityId> entities;
-        (entities.push_back(args), ...);
-        std::ranges::sort(entities, std::less{});
+        ankerl::unordered_dense::set<ecs::EntityId> entities;
+        (entities.insert(args), ...);
         return entities;
     };
 
-    ASSERT_EQ(gather_entities(std::tuple<A>{}), make_vector(e_a, e_ab, e_da, e_abc, e_cda, e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<B>{}), make_vector(e_b, e_ab, e_bc, e_abc, e_bcd, e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<C>{}), make_vector(e_c, e_bc, e_cd, e_abc, e_bcd, e_cda, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<D>{}), make_vector(e_d, e_cd, e_da, e_bcd, e_cda, e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<A, B>{}), make_vector(e_ab, e_abc, e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<B, C>{}), make_vector(e_bc, e_abc, e_bcd, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<C, D>{}), make_vector(e_cd, e_bcd, e_cda, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<D, A>{}), make_vector(e_da, e_cda, e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<A, B, C>{}), make_vector(e_abc, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<B, C, D>{}), make_vector(e_bcd, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<C, D, A>{}), make_vector(e_cda, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<D, A, B>{}), make_vector(e_dab, e_abcd));
-    ASSERT_EQ(gather_entities(std::tuple<A, B, C, D>{}), make_vector(e_abcd));
+    ASSERT_EQ(gather(std::tuple<A>{}), make(e_a, e_ab, e_da, e_abc, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<B>{}), make(e_b, e_ab, e_bc, e_abc, e_bcd, e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<C>{}), make(e_c, e_bc, e_cd, e_abc, e_bcd, e_cda, e_abcd));
+    ASSERT_EQ(gather(std::tuple<D>{}), make(e_d, e_cd, e_da, e_bcd, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<A, B>{}), make(e_ab, e_abc, e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<B, C>{}), make(e_bc, e_abc, e_bcd, e_abcd));
+    ASSERT_EQ(gather(std::tuple<C, D>{}), make(e_cd, e_bcd, e_cda, e_abcd));
+    ASSERT_EQ(gather(std::tuple<D, A>{}), make(e_da, e_cda, e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<A, B, C>{}), make(e_abc, e_abcd));
+    ASSERT_EQ(gather(std::tuple<B, C, D>{}), make(e_bcd, e_abcd));
+    ASSERT_EQ(gather(std::tuple<C, D, A>{}), make(e_cda, e_abcd));
+    ASSERT_EQ(gather(std::tuple<D, A, B>{}), make(e_dab, e_abcd));
+    ASSERT_EQ(gather(std::tuple<A, B, C, D>{}), make(e_abcd));
 }

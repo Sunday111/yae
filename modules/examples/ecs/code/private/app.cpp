@@ -1,48 +1,10 @@
 #include "ecs/app.hpp"
 
+#include "ecs/internal/component_pool.hpp"
 #include "ecs/isystem.hpp"
 
 namespace ecs
 {
-
-EntitiesIterator_ErasedType::EntitiesIterator_ErasedType(App& app, std::span<internal::ComponentPool*> pools)
-    : pools_(pools),
-      app_(&app)
-{
-    std::ranges::sort(pools_, std::less{}, &internal::ComponentPool::GetAllocatedCount);
-    if (pools_.size() > 0)
-    {
-        smallest_pool_iterator_ = internal::ComponentPoolIterator(*pools_.front());
-    }
-}
-
-std::optional<EntityId> EntitiesIterator_ErasedType::Next()
-{
-    if (smallest_pool_iterator_.has_value())
-    {
-        while (auto opt = smallest_pool_iterator_->Next())
-        {
-            const auto entity_id = *opt;
-            bool has_all_components = true;
-            for (size_t index = 1; index < pools_.size(); ++index)
-            {
-                auto pool = pools_[index];
-                if (!app_->HasComponent(entity_id, pool->GetType()))
-                {
-                    has_all_components = false;
-                    break;
-                }
-            }
-
-            if (has_all_components)
-            {
-                return entity_id;
-            }
-        }
-    }
-
-    return std::nullopt;
-}
 
 App::App() = default;
 App::~App() = default;
@@ -159,28 +121,4 @@ void App::RemoveEntity(const EntityId entity_id)
     entity_collection_.DestroyEntity(entity_id);
 }
 
-void App::ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback)
-{
-    assert(components_pools_.contains(type));
-    auto& pool_ptr = components_pools_[type];
-    pool_ptr->ForEach(std::bind_front(callback, user_data));
-}
-
-bool App::ForEach(
-    internal::ComponentPool** pools,
-    const size_t pools_count,
-    void* user_data,
-    ForEachCallbackRaw callback)
-{
-    EntitiesIterator_ErasedType iterator(*this, std::span<internal::ComponentPool*>(pools, pools_count));
-    while (auto opt = iterator.Next())
-    {
-        if (!callback(user_data, *opt))
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
 }  // namespace ecs

@@ -11,7 +11,6 @@
 #include "EverydayTools/GUID.hpp"
 #include "ankerl/unordered_dense.h"
 #include "component_type_id.hpp"
-#include "ecs/internal/component_pool.hpp"
 #include "entity_collection.hpp"
 
 namespace ecs::internal
@@ -26,40 +25,6 @@ namespace ecs
 class ISystem;
 
 class App;
-
-class EntitiesIterator_ErasedType
-{
-public:
-    EntitiesIterator_ErasedType(App& app, std::span<internal::ComponentPool*> pools);
-
-    std::optional<EntityId> Next();
-
-private:
-    std::span<internal::ComponentPool*> pools_;
-    App* app_ = nullptr;
-    std::optional<internal::ComponentPoolIterator> smallest_pool_iterator_;
-};
-
-template <typename... ComponentTypes>
-class EntitiesIterator
-{
-public:
-    explicit EntitiesIterator(App& app);
-
-    std::optional<EntityId> Next()
-    {
-        return type_erased_.Next();
-    }
-
-    std::span<internal::ComponentPool*> GetPools()
-    {
-        return pools_;
-    }
-
-private:
-    std::array<internal::ComponentPool*, sizeof...(ComponentTypes)> pools_;
-    EntitiesIterator_ErasedType type_erased_;
-};
 
 class App
 {
@@ -146,54 +111,6 @@ public:
 
     using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
 
-    void ForEach(const cppreflection::Type* type, void* user_data, ForEachCallbackRaw callback);
-    bool
-    ForEach(internal::ComponentPool** pools, const size_t pools_count, void* user_data, ForEachCallbackRaw callback);
-
-    template <edt::Callable<bool, EntityId> Callback>
-    void ForEach(const cppreflection::Type* type, Callback&& callback)
-    {
-        ForEach(
-            type,
-            &callback,
-            [](void* user_data, const EntityId entity_id) -> bool
-            {
-                auto& callback = *reinterpret_cast<Callback*>(user_data);  // NOLINT
-                return callback(entity_id);
-            });
-    }
-
-    template <typename Component, edt::Callable<bool, EntityId> Callback>
-    void ForEach(Callback&& callback)
-    {
-        ForEach(cppreflection::GetTypeInfo<Component>(), std::forward<Callback>(callback));
-    }
-
-    template <edt::Callable<bool, EntityId> Callback, typename... Components>
-    void ForEach(std::tuple<Components...>, Callback&& callback)
-    {
-        EntitiesIterator<Components...> iterator(*this);
-        constexpr size_t types_count = sizeof...(Components);
-        static_assert(types_count != 0);
-        if constexpr (types_count == 1)
-        {
-            ForEach<Components...>(std::forward<Callback>(callback));
-        }
-        else
-        {
-            std::array<internal::ComponentPool*, types_count> pools{GetComponentPool<Components>()...};
-            ForEach(
-                pools.data(),
-                types_count,
-                &callback,
-                [](void* user_data, const EntityId entity_id)
-                {
-                    auto& callback = *reinterpret_cast<Callback*>(user_data);  // NOLINT
-                    return callback(entity_id);
-                });
-        }
-    }
-
     template <typename T>
     internal::ComponentPool* GetComponentPool()
     {
@@ -224,10 +141,4 @@ private:
     EntityCollection entity_collection_;
 };
 
-template <typename... ComponentTypes>
-EntitiesIterator<ComponentTypes...>::EntitiesIterator(App& app)
-    : pools_{app.GetComponentPool<ComponentTypes>()...},
-      type_erased_(app, pools_)
-{
-}
 }  // namespace ecs
