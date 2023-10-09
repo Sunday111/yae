@@ -16,7 +16,6 @@
 namespace ecs::internal
 {
 class ComponentPool;
-class ComponentPoolIterator;
 
 }  // namespace ecs::internal
 
@@ -36,11 +35,9 @@ public:
     virtual void RegisterComponents() = 0;
     virtual void CreateSystems() = 0;
     virtual void Initialize();
+    virtual void Update();
 
-    EntityId CreateEntity()
-    {
-        return entity_collection_.CreateEntity();
-    }
+    // ******************************************** Component ******************************************** //
 
     template <typename Component>
     Component& AddComponent(const EntityId entity_id)
@@ -66,8 +63,25 @@ public:
         (std::make_index_sequence<count>());
     }
 
+    template <typename... Components>
+    std::tuple<Components*...> GetComponents(const EntityId entity_id)
+    {
+        const size_t count = sizeof...(Components);
+        std::array<const cppreflection::Type*, count> types{cppreflection::GetTypeInfo<Components>()...};
+        std::array<void*, count> components;
+        GetComponents(entity_id, types.data(), components.data(), count);
+
+        return [&]<size_t... indices>(std::index_sequence<indices...>)
+        {
+            return std::make_tuple(reinterpret_cast<Components*>(components[indices])...);  // NOLINT
+        }
+        (std::make_index_sequence<count>());
+    }
+
     void
     AddComponents(const EntityId entity_id, const cppreflection::Type** types, void** components, const size_t count);
+    void
+    GetComponents(const EntityId entity_id, const cppreflection::Type** types, void** components, const size_t count);
 
     template <typename... Components>
     EntityId CreateEntityWithComponents()
@@ -102,6 +116,12 @@ public:
 
     bool HasComponent(const EntityId entity_id, const cppreflection::Type* type) const;
 
+    // ******************************************** Entitiy ******************************************** //
+    EntityId CreateEntity()
+    {
+        return entity_collection_.CreateEntity();
+    }
+
     bool HasEntity(const EntityId entity_id) const
     {
         return entity_collection_.HasEntity(entity_id);
@@ -110,6 +130,8 @@ public:
     void RemoveEntity(const EntityId entity_id);
 
     using ForEachCallbackRaw = bool (*)(void* user_data, const EntityId entity_id);
+
+    // ******************************************** Component Pool ******************************************** //
 
     template <typename T>
     internal::ComponentPool* GetComponentPool()

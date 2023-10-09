@@ -78,6 +78,20 @@ void App::AddComponents(
         components[i] = component_info.component;  // NOLINT
     }
 }
+void App::GetComponents(
+    const EntityId entity_id,
+    const cppreflection::Type** types,
+    void** components,
+    const size_t count)
+{
+    auto& entity_info = entity_collection_.GetEntityInfo(entity_id);
+    for (size_t i = 0; i != count; ++i)
+    {
+        const auto type = types[i];  // NOLINT
+        assert(entity_info.components.contains(type));
+        components[i] = entity_info.components[type].component;  // NOLINT
+    }
+}
 
 void App::RemoveComponent(const EntityId entity_id, const cppreflection::Type* type)
 {
@@ -119,6 +133,14 @@ void App::RemoveEntity(const EntityId entity_id)
         RemoveComponent(entity_id, type);
     }
     entity_collection_.DestroyEntity(entity_id);
+}
+
+void App::Update()
+{
+    for (auto& system : systems_)
+    {
+        system->Tick(*this);
+    }
 }
 
 }  // namespace ecs

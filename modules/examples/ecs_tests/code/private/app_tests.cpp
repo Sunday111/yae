@@ -1,6 +1,7 @@
 #include <random>
 
 #include "ecs/entities_iterator.hpp"
+#include "ecs/entity_filter.hpp"
 #include "fmt/format.h"
 #include "gtest/gtest.h"
 #include "test_app.hpp"
@@ -249,9 +250,11 @@ TEST(AppTest, EntitiesIterator)  // NOLINT
 
     auto gather = [&]<typename... Component>(std::tuple<Component...>)
     {
-        ecs::EntitiesIterator<Component...> iterator(app);
         ankerl::unordered_dense::set<ecs::EntityId> entities;
-        while (auto opt = iterator.Next()) entities.insert(*opt);
+        for (auto entity : ecs::EntityFilter<Component...>(app))
+        {
+            entities.insert(entity);
+        }
         return entities;
     };
 

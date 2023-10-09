@@ -10,6 +10,7 @@ set(module_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/constants.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entities_iterator.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_collection.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_filter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/entity_id.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/internal/component_pool.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/code/public/ecs/internal/entity_has_component.hpp
