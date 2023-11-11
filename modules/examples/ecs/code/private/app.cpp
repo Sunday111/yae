@@ -1,7 +1,7 @@
 #include "ecs/app.hpp"
 
 #include "ecs/internal/component_pool.hpp"
-#include "ecs/isystem.hpp"
+#include "ecs/system.hpp"
 
 namespace ecs
 {
@@ -9,7 +9,7 @@ namespace ecs
 App::App() = default;
 App::~App() = default;
 
-void App::AddSystem(std::unique_ptr<ISystem> system)
+void App::AddSystem(std::unique_ptr<System> system)
 {
     systems_.push_back(std::move(system));
 }
@@ -42,6 +42,7 @@ void App::Initialize()
     RegisterReflectionTypes();
     RegisterComponents();
     CreateSystems();
+    InitializeSystems();
 }
 
 void* App::AddComponent(const EntityId entity_id, const cppreflection::Type* type)
@@ -140,6 +141,14 @@ void App::Update()
     for (auto& system : systems_)
     {
         system->Tick(*this);
+    }
+}
+
+void App::InitializeSystems()
+{
+    for (auto& system : systems_)
+    {
+        system->Initialize(*this);
     }
 }
 

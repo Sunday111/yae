@@ -5,11 +5,12 @@ namespace ecs
 
 class App;
 
-class ISystem
+class System
 {
 public:
     virtual void Tick(App& app) = 0;
-    virtual ~ISystem() = default;
+    virtual void Initialize(App&){};
+    virtual ~System() = default;
 };
 
 }  // namespace ecs

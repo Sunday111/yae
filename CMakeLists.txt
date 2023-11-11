@@ -23,6 +23,9 @@ add_subdirectory(cloned_repositories/raylib/4_5_0 SYSTEM)
 # https://github.com/fmtlib/fmt 10.1.1
 add_subdirectory(cloned_repositories/fmt/10_1_1 SYSTEM)
 
+# https://gitlab.com/libeigen/eigen 3.4.1
+add_subdirectory(cloned_repositories/eigen/3.4.1 SYSTEM)
+
 # https://github.com/Sunday111/EverydayTools for_yae
 option(EDT_WITH_TESTS "" ON)
 add_subdirectory(cloned_repositories/edt SYSTEM)

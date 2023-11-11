@@ -1,7 +1,7 @@
 #include "test_app.hpp"
 
 #include "CppReflection/GetTypeInfo.hpp"
-#include "ecs/isystem.hpp"
+#include "ecs/system.hpp"
 #include "test_components.hpp"
 
 TestApp::TestApp() = default;

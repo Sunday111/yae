@@ -21,7 +21,7 @@ class ComponentPool;
 
 namespace ecs
 {
-class ISystem;
+class System;
 
 class App;
 
@@ -36,6 +36,7 @@ public:
     virtual void CreateSystems() = 0;
     virtual void Initialize();
     virtual void Update();
+    virtual void InitializeSystems();
 
     // ******************************************** Component ******************************************** //
 
@@ -141,7 +142,7 @@ public:
     internal::ComponentPool* GetComponentPool(const cppreflection::Type* type);
 
 protected:
-    void AddSystem(std::unique_ptr<ISystem> system);
+    void AddSystem(std::unique_ptr<System> system);
 
     void RegisterComponent(const cppreflection::Type* type);
 
@@ -155,7 +156,7 @@ private:
     ComponentTypeId MakeComponentTypeId();
 
 private:
-    std::vector<std::unique_ptr<ISystem>> systems_;
+    std::vector<std::unique_ptr<System>> systems_;
     ankerl::unordered_dense::map<const cppreflection::Type*, std::unique_ptr<internal::ComponentPool>>
         components_pools_;
     ankerl::unordered_dense::map<const cppreflection::Type*, ComponentTypeId> components_ids_;
