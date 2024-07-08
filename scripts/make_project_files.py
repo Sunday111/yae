@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Iterable, Callable, Generator
 import collections
+import argparse
 
 from cmake_generator import CMakeGenerator
 from cloned_repo_registry import ClonedRepoRegistry
@@ -145,13 +146,25 @@ class ModuleRegistry:
 
 
 def main():
-    ctx = GlobalContext()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--project_dir",
+        type=Path,
+        required=False,
+        help="Path to directory with your project",
+        default=None,
+    )
+    cli_parameters = parser.parse_args()
+
+    ctx = GlobalContext(project_root=cli_parameters.project_dir)
     module_registry = ModuleRegistry()
     cloned_repo_registry = ClonedRepoRegistry(ctx)
 
     # Gather modules
-    if not module_registry.add(map(Module, ctx.modules_dir.rglob("*.module.json"))):
-        return
+    for modules_dir in ctx.all_modules_dirs:
+        if not module_registry.add(map(Module, modules_dir.rglob("*.module.json"))):
+            print(f"Failed to add modules from path {modules_dir}")
+            return
 
     if not module_registry.ensure_single_module_rules():
         return
@@ -166,6 +179,7 @@ def main():
                 return False
 
     yae_root_var = "YAE_ROOT"
+    project_root_var = "YAE_PROJECT_ROOT"
 
     with open(CMakeGenerator.make_file_path(ctx.root_dir), mode="w", encoding="utf-8") as file:
         gen = CMakeGenerator(file)
@@ -177,9 +191,15 @@ def main():
         gen.require_cpp_standard()
         gen.disable_cpp_extensions()
         gen.line()
-        gen.add_module_path(Path("cmake"))
+        if ctx.project_root_dir:
+            gen.line(
+                f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}/{ctx.yae_root_dir.relative_to(ctx.project_root_dir).as_posix()}")'
+            )
+        else:
+            gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
+        gen.line(f'set({project_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
+        gen.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};${{{yae_root_var}}}/cmake")')
         gen.line()
-        gen.line(f"set({yae_root_var} ${{CMAKE_CURRENT_SOURCE_DIR}})")
         gen.line()
 
         top_sorted = module_registry.toplogical_sort()

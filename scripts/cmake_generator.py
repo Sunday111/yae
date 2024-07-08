@@ -72,9 +72,6 @@ class CMakeGenerator:
     def patch_rel_path(rel_path: Path):
         return f"${{CMAKE_CURRENT_SOURCE_DIR}}/{rel_path.as_posix()}"
 
-    def add_module_path(self, rel_path: Path):
-        self.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};{self.patch_rel_path(rel_path)}")')
-
     def __write(self, text: str):
         self.__file.write(text)
 
