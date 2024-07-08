@@ -11,6 +11,7 @@ from global_context import GlobalContext
 import yae_module
 from yae_module import Module
 from yae_module import ModuleType
+import json_utils
 
 
 class ModuleRegistry:
@@ -178,6 +179,13 @@ def main():
             if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
                 return False
 
+    project_name = "YAE"
+    cpp_standard = 20
+    if ctx.project_root_dir:
+        json = json_utils.read_json_file(ctx.project_root_dir / "yae_project.json")
+        project_name = json["name"]
+        cpp_standard = json["cpp"]["standard"]
+
     yae_root_var = "YAE_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"
 
@@ -185,9 +193,9 @@ def main():
         gen = CMakeGenerator(file)
         gen.version_line(3, 20)
         gen.line()
-        gen.project_line("YAE")
+        gen.project_line(project_name)
         gen.line()
-        gen.define_cpp_standard(20)
+        gen.define_cpp_standard(cpp_standard)
         gen.require_cpp_standard()
         gen.disable_cpp_extensions()
         gen.line()
