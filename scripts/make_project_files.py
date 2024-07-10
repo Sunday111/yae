@@ -11,7 +11,6 @@ from global_context import GlobalContext
 import yae_module
 from yae_module import Module
 from yae_module import ModuleType
-import json_utils
 
 
 class ModuleRegistry:
@@ -179,13 +178,6 @@ def main():
             if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
                 return False
 
-    project_name = "YAE"
-    cpp_standard = 20
-    if ctx.project_root_dir:
-        json = json_utils.read_json_file(ctx.project_root_dir / "yae_project.json")
-        project_name = json["name"]
-        cpp_standard = json["cpp"]["standard"]
-
     yae_root_var = "YAE_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"
 
@@ -193,18 +185,20 @@ def main():
         gen = CMakeGenerator(file)
         gen.version_line(3, 20)
         gen.line()
-        gen.project_line(project_name)
+        gen.project_line(ctx.project_config.name)
         gen.line()
-        gen.define_cpp_standard(cpp_standard)
+        gen.define_cpp_standard(ctx.project_config.cpp_standard)
         gen.require_cpp_standard()
         gen.disable_cpp_extensions()
         gen.line()
-        if ctx.project_root_dir:
-            gen.line(
-                f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}/{ctx.yae_root_dir.relative_to(ctx.project_root_dir).as_posix()}")'
-            )
+        if ctx.yae_root_dir.is_relative_to(ctx.project_root_dir):
+            # engine is part of the project
+            project_rel_path = ctx.yae_root_dir.relative_to(ctx.project_root_dir)
+            gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}/{project_rel_path.as_posix()}")')
         else:
+            # project is part of the engine
             gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
+
         gen.line(f'set({project_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
         gen.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};${{{yae_root_var}}}/cmake")')
         gen.line()

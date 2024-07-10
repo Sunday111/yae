@@ -1,22 +1,19 @@
 from pathlib import Path
 from typing import Generator
+from project_config import ProjectConfig
 
 
 class GlobalContext:
     """Global state of the script"""
 
-    def __init__(self, project_root: Path = None):
+    def __init__(self, project_root: Path):
         self.__scripts_dir = Path(__file__).parent.resolve()
         self.__yae_root_dir = self.__scripts_dir.parent.resolve()
+        self.__project_config = ProjectConfig(project_root)
         self.__yae_modules_dir = (self.__yae_root_dir / "modules").resolve()
         self.__generated_dir = self.__yae_root_dir / "generated"
         self.__cloned_modules_dir = self.__yae_root_dir / "cloned_repositories"
         self.__cloned_modules_registry_file = self.__cloned_modules_dir / "registry.json"
-        self.__project_root = project_root
-        if project_root is None:
-            self.__project_modules_dir = None
-        else:
-            self.__project_modules_dir = self.__project_root / "modules"
 
     @property
     def root_dir(self) -> Path:
@@ -30,9 +27,13 @@ class GlobalContext:
         return self.__yae_root_dir
 
     @property
-    def project_root_dir(self) -> Path | None:
+    def project_config(self) -> ProjectConfig:
+        return self.__project_config
+
+    @property
+    def project_root_dir(self) -> Path:
         """Returns root directory of the project that uses yae"""
-        return self.__project_root
+        return self.__project_config.root_dir
 
     @property
     def yae_modules_dir(self) -> Path:
@@ -42,13 +43,7 @@ class GlobalContext:
     @property
     def all_modules_dirs(self) -> Generator[Path, None, None]:
         yield self.yae_modules_dir
-        if not (self.project_modules_dir is None):
-            yield self.project_modules_dir
-
-    @property
-    def project_modules_dir(self) -> Path | None:
-        """Returns path to the directory with project modules. Or none if yae is being used by itself"""
-        return self.__project_modules_dir
+        yield self.project_config.modules_dir
 
     @property
     def scripts_dir(self) -> Path:
