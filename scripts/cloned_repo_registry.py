@@ -35,7 +35,16 @@ class ClonedRepoRegistry:
 
         start_time = time.time()
         subprocess.check_call(
-            ["git", "clone", "--depth", "1", "--branch", git_tag, git_url, self.ctx.cloned_modules_dir / path],
+            [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "--branch",
+                git_tag,
+                git_url,
+                self.ctx.project_config.cloned_modules_dir / path,
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -54,9 +63,11 @@ class ClonedRepoRegistry:
             }
             for key, value in self.cloned_repos.items()
         }
-        json_utils.save_json_to_file(self.ctx.cloned_modules_registry_file, converted)
+        json_utils.save_json_to_file(self.ctx.project_config.cloned_modules_registry_file, converted)
 
     def __read_registry_file(self):
-        if self.ctx.cloned_modules_registry_file.exists():
-            for path_str, identifier in json_utils.read_json_file(self.ctx.cloned_modules_registry_file).items():
+        if self.ctx.project_config.cloned_modules_registry_file.exists():
+            for path_str, identifier in json_utils.read_json_file(
+                self.ctx.project_config.cloned_modules_registry_file
+            ).items():
                 self.cloned_repos[Path(path_str)] = identifier["GitUrl"], identifier["GitTag"]

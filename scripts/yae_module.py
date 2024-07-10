@@ -111,7 +111,7 @@ class Module:
 
     def cmake_subdirectory(self, ctx: GlobalContext) -> Path:
         if self.module_type == ModuleType.GITCLONE:
-            return (ctx.cloned_modules_dir / self.local_path).relative_to(ctx.root_dir)
+            return (ctx.project_config.cloned_modules_dir / self.local_path).relative_to(ctx.root_dir)
         return self.root_dir.relative_to(ctx.root_dir)
 
     @property

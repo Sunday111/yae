@@ -10,3 +10,5 @@ class ProjectConfig:
         self.name = json["name"]
         self.cpp_standard = json["cpp"]["standard"]
         self.modules_dir = self.root_dir / json["modules_dir"]
+        self.cloned_modules_dir = self.root_dir / json["cloned_modules_dir"]
+        self.cloned_modules_registry_file = self.cloned_modules_dir / "registry.json"
