@@ -1,9 +1,0 @@
-{
-    "ModuleType": "Executable",
-    "Dependencies": {
-        "Public": [],
-        "Private": [
-            "fmtlib"
-        ]
-    }
-}

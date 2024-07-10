@@ -1,7 +1,0 @@
-{
-    "name": "YAE_Example",
-    "modules_dir": "src",
-    "cpp": {
-        "standard": "20"
-    }
-}
