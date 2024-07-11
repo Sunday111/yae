@@ -115,7 +115,7 @@ class ModuleRegistry:
 
         return all_ok
 
-    def toplogical_sort(self) -> list[str]:
+    def toplogical_sort(self, targets: list[str] | None = None) -> list[str]:
         """Returns list of modules names sorted topologically.
         All modules in this list come before it's dependencies
         """
@@ -133,7 +133,10 @@ class ModuleRegistry:
             # After visiting all neighbors, add the node to the result stack
             result_stack.append(node)
 
-        for node in self.__lookup:
+        if targets is None:
+            targets = list(self.__lookup.keys())
+
+        for node in targets:
             if node not in visited:
                 dfs(node)
 
@@ -147,13 +150,7 @@ class ModuleRegistry:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--project_dir",
-        type=Path,
-        required=False,
-        help="Path to directory with your project",
-        default=None,
-    )
+    parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
     cli_parameters = parser.parse_args()
 
     ctx = GlobalContext(project_root=cli_parameters.project_dir)
@@ -180,6 +177,13 @@ def main():
 
     yae_root_var = "YAE_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"
+
+    def copy_after_build(gen: CMakeGenerator, module: Module):
+        for copy_dir in module.post_build_copy_dirs:
+            gen.line(f"add_custom_command(TARGET {module.cmake_target_name}")
+            gen.line(f"    POST_BUILD COMMAND ${{CMAKE_COMMAND}} -E copy_directory")
+            gen.line(f'    "${{CMAKE_CURRENT_SOURCE_DIR}}/{copy_dir.relative_to(module.root_dir)}"')
+            gen.line(f"    $<TARGET_FILE_DIR:{module.cmake_target_name}>/{copy_dir.stem})")
 
     with open(CMakeGenerator.make_file_path(ctx.root_dir), mode="w", encoding="utf-8") as file:
         gen = CMakeGenerator(file)
@@ -223,6 +227,7 @@ def main():
 
                         is_system = True
                         gen.add_subdirectory(path, is_system)
+                        copy_after_build(gen, module)
                         gen.line()
                         added_subdirs.add(path)
 
@@ -290,6 +295,8 @@ def main():
                 gen.line("enable_testing()")
                 gen.line("include(GoogleTest)")
                 gen.line(f"gtest_discover_tests({module.name})")
+
+            copy_after_build(gen, module)
 
 
 if __name__ == "__main__":

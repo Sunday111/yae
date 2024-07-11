@@ -27,19 +27,23 @@ class Module:
         self.__private_modules: list[str] = list()
         self.__public_modules: list[str] = list()
         self.__module_type = ModuleType.LIBRARY
-        file_data: dict = json_utils.read_json_file(file_path)
-        self.__read_module_type(file_data)
-        self.__read_dependencies(file_data)
+        json: dict = json_utils.read_json_file(file_path)
+        self.__read_module_type(json)
+        self.__read_dependencies(json)
         if self.module_type == ModuleType.GITCLONE:
-            self.__git_url = file_data["GitUrl"]
-            self.__git_tag = file_data["GitTag"]
+            self.__git_url = json["GitUrl"]
+            self.__git_tag = json["GitTag"]
 
-        self.__cmake_target_name: None | str = file_data.get("TargetName", None)
-        self.__enable_testing: bool = file_data.get("EnableTesting", False)
-        self.__cmake_options: dict[str, bool | int | str] = file_data.get("CMakeOptions", {})
+        self.__cmake_target_name: None | str = json.get("TargetName", None)
+        self.__enable_testing: bool = json.get("EnableTesting", False)
+        self.__cmake_options: dict[str, bool | int | str] = json.get("CMakeOptions", {})
 
         if self.module_type == ModuleType.GITCLONE:
-            self.__local_path = Path(file_data["LocalPath"])
+            self.__local_path = Path(json["LocalPath"])
+
+        self.__post_build_copy_dirs: list[Path] = [
+            self.root_dir / x for x in json.get("CopyDirectoriesAfterBuild", list())
+        ]
 
     def __read_dependencies(self, file_data: dict):
         key_dependencies = "Dependencies"
@@ -53,6 +57,10 @@ class Module:
         key_module_type = "ModuleType"
         module_type_str: str = file_data[key_module_type]
         self.__module_type = ModuleType[module_type_str.upper()]
+
+    @property
+    def post_build_copy_dirs(self) -> Generator[Path, None, None]:
+        yield from self.__post_build_copy_dirs
 
     @property
     def git_url(self) -> str:
