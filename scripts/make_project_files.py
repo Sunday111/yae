@@ -208,6 +208,13 @@ def main():
         gen.line()
         gen.line()
 
+        if not (ctx.project_config.enable_lto_globally is None):
+            gen.include("yae_lto")
+            gen.line("enable_lto_globally()" if ctx.project_config.enable_lto_globally else "disable_lto_globally()")
+
+        gen.line()
+        gen.line()
+
         top_sorted = module_registry.toplogical_sort()
 
         if module_registry.has_external_dependencies:
@@ -259,6 +266,9 @@ def main():
             is_interface_library = False
 
             gen.include("set_compiler_options")
+            if module.specifies_lto:
+                gen.include("yae_lto")
+
             gen.make_paths_list_variable(src_var_name, rel_sources)
 
             if module.module_type == ModuleType.LIBRARY:
@@ -291,9 +301,15 @@ def main():
             gen.target_include_directories(module.name, public_access, [Path("code/public")])
             gen.target_include_directories(module.name, private_access, [Path("code/private")])
 
+            if module.specifies_lto:
+                if module.enable_lto:
+                    gen.line(f"enable_lto_for({module.name})")
+                else:
+                    gen.line(f"disable_lto_for({module.name})")
+
             if module.enable_testing:
                 gen.line("enable_testing()")
-                gen.line("include(GoogleTest)")
+                gen.include("GoogleTest")
                 gen.line(f"gtest_discover_tests({module.name})")
 
             copy_after_build(gen, module)
