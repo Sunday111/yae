@@ -4,7 +4,7 @@ function(set_generic_compiler_options target_name access)
     if(MSVC)
         set(compile_opts
             /W4
-            /permissive # Enforces standards conformance.
+            /permissive- # Enforces standards conformance.
             /w14242 # 'identfier': conversion from 'type1' to 'type1', possible loss of data
             /w14254 # 'operator': conversion from 'type1:field_bits' to 'type2:field_bits', possible loss of data
             /w14263 # 'function': member function does not override any base class virtual member function
