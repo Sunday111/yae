@@ -37,6 +37,7 @@ class Module:
         self.__cmake_target_name: None | str = json.get("TargetName", None)
         self.__enable_testing: bool = json.get("EnableTesting", False)
         self.__cmake_options: dict[str, bool | int | str] = json.get("CMakeOptions", {})
+        self.__enable_lto: bool | None = json.get("EnableLTO", None)
 
         if self.module_type == ModuleType.GITCLONE:
             self.__local_path = Path(json["LocalPath"])
@@ -139,3 +140,11 @@ class Module:
     @property
     def local_path(self) -> Path:
         return self.__local_path
+
+    @property
+    def enable_lto(self) -> bool | None:
+        return self.__enable_lto
+
+    @property
+    def specifies_lto(self) -> bool:
+        return not (self.enable_lto is None)
