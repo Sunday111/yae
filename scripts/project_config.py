@@ -12,4 +12,4 @@ class ProjectConfig:
         self.modules_dir = self.root_dir / json["modules_dir"]
         self.cloned_modules_dir = self.root_dir / json["cloned_modules_dir"]
         self.enable_lto_globally: bool | None = json.get("enable_lto_globally", None)
-        self.cloned_modules_registry_file = self.cloned_modules_dir / "registry.json"
+        self.cloned_modules_registry_file: Path = self.cloned_modules_dir / "registry.json"
