@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Iterable, Callable, Generator
+import typing
 import collections
 import argparse
 
@@ -12,6 +13,30 @@ import yae_module
 from yae_module import Module
 from yae_module import ModuleType
 import json_utils
+from dataclasses import dataclass
+
+
+@dataclass
+class GitHubLink:
+    url: str
+    tag: str
+    subdir: Path
+
+    @staticmethod
+    def parse(link: str) -> "GitHubLink":
+        prefix = "https://github.com/"
+        default_tag = "main"
+        if link.startswith(prefix):
+            tokens = link.replace(prefix, "").split(" ")
+
+            if len(tokens) == 1:
+                return GitHubLink(url=prefix + tokens[0], tag=default_tag, subdir=Path(tokens[0]))
+
+            if len(tokens) == 2:
+                return GitHubLink(url=prefix + tokens[0], tag=tokens[1], subdir=Path(tokens[0]))
+
+        print(f"Unexpected github link. Format: {prefix}your_repo tag. Tag is optional, {default_tag} is default")
+        return None
 
 
 class ModuleRegistry:
@@ -166,33 +191,25 @@ def main():
     cloned_repo_registry = ClonedRepoRegistry(ctx)
 
     modules_dirs_queue: list[Path] = list(ctx.all_modules_dirs)
-    packages_queue: list[tuple[str, str]] = list()  # list of tuples. first item is git url, second is tag
+    packages_queue: list[str] = list()  # list of package references
 
     all_modules_ok = True
 
-    def add_package(package_uri: str, package_tag: str):
+    def add_package(package_reference: str):
         nonlocal all_modules_ok
-        prefix = "https://github.com/"
-        if not package_uri.startswith(package_uri):
+        link = GitHubLink.parse(package_reference)
+        if link is None:
             all_modules_ok = False
-            print(f"Unexpected module uri. Should start with {prefix}")
             return
 
-        subdir = package_uri.replace(prefix, "")
-        if len(subdir) == 0:
-            all_modules_ok = False
-            print(f"Unexpected module uri. Expected to contain repository path after {prefix}")
+        if cloned_repo_registry.exists_and_same_ref(link.subdir, link.url, link.tag):
             return
 
-        if cloned_repo_registry.exists_and_same_ref(subdir, package_uri, package_tag):
-            return
-
-        subdir = Path(subdir)
-        if not cloned_repo_registry.fetch_repo(subdir, package_uri, package_tag):
-            print(f"Failed to clone this uri: {package_uri}. Check it exists and has {package_tag} branch or tag")
+        if not cloned_repo_registry.fetch_repo(link.subdir, link.url, link.tag):
+            print(f"Failed to clone this uri: {link.url}. Check it exists and has {link.tag} branch or tag")
             all_modules_ok = False
 
-        full_package_package_path = ctx.project_config.cloned_repos_dir / subdir
+        full_package_package_path = ctx.project_config.cloned_repos_dir / link.subdir
         modules_dirs_queue.append(full_package_package_path)
 
         for package_json_path in list(full_package_package_path.rglob("*.package.json")):
@@ -200,7 +217,8 @@ def main():
             dependencies: dict = package_json.get("Dependencies", dict())
             git_packages: list[str] = dependencies.get("GitPackages", list())
             for git_dep in git_packages:
-                packages_queue.append((git_dep, "main"))
+                packages_queue.append(git_dep)
+                print(f"yoyoyo {git_dep}")
 
     def add_module(module: Module):
         nonlocal all_modules_ok
@@ -208,8 +226,8 @@ def main():
             all_modules_ok = False
             return
 
-        for package_uri in module.git_packages:
-            packages_queue.append((package_uri, "main"))
+        for package_reference in module.git_packages:
+            packages_queue.append(package_reference)
 
         if module.module_type == ModuleType.GITCLONE:
             if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
@@ -220,11 +238,10 @@ def main():
         while modules_dirs_queue:
             modules_dir = modules_dirs_queue.pop()
             for module_file_path in modules_dir.rglob("*.module.json"):
-                module = Module(module_file_path)
-                add_module(module)
+                add_module(Module(module_file_path))
         while packages_queue:
-            git_url, tag = packages_queue.pop()
-            add_package(git_url, tag)
+            package_reference = packages_queue.pop()
+            add_package(package_reference)
 
     if not all_modules_ok:
         print(f"Failed to add some modules")

@@ -3,7 +3,7 @@
     "GitUrl": "https://github.com/google/benchmark",
     "GitTag": "v1.8.3",
     "TargetName": "benchmark::benchmark",
-    "LocalPath": "google/googlebench/1_8_3",
+    "LocalPath": "google/benchmark/1_8_3",
     "CMakeOptions": {
         "BENCHMARK_ENABLE_TESTING": false
     }

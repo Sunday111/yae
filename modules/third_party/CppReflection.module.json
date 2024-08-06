@@ -3,9 +3,11 @@
     "GitUrl": "https://github.com/Sunday111/CppReflection",
     "GitTag": "for_yae",
     "TargetName": "CppReflection",
-    "LocalPath": "CppReflection",
+    "LocalPath": "Sunday111/CppReflection",
     "Dependencies": {
-        "Public": ["edt"],
+        "Public": [
+            "edt"
+        ],
         "Private": []
     }
 }
