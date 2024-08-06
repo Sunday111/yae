@@ -21,7 +21,7 @@ def main():
     if registry_path.exists() and registry_path.is_file():
         registry = json_utils.read_json_file(registry_path)
         for local_path in registry.keys():
-            paths.append(config.cloned_modules_dir / local_path)
+            paths.append(config.cloned_repos_dir / local_path)
     else:
         print(f"{registry_path} does not exist or not a file. Skipping checking cloned modules")
 

@@ -11,6 +11,7 @@ from global_context import GlobalContext
 import yae_module
 from yae_module import Module
 from yae_module import ModuleType
+import json_utils
 
 
 class ModuleRegistry:
@@ -21,20 +22,27 @@ class ModuleRegistry:
     def find(self, module_name: str) -> Module | None:
         return self.__lookup.get(module_name, None)
 
+    def add_one(self, module: Module) -> bool:
+        if module.name in self.__lookup:
+            first = self.__lookup[module.name]
+            print(f"Found duplicate of {module.name} module name:")
+            print(f"   {first.module_file_path.as_posix()} <- first occurence")
+            print(f"   {module.module_file_path.as_posix()} <- duplicate")
+            return False
+
+        self.__lookup[module.name] = module
+
+        if module.module_type == ModuleType.GITCLONE:
+            self.__has_external_dependencies = True
+
+        return True
+
     def add(self, modules: Iterable[Module]) -> bool:
         """Add module objects to the registry. Ensures that all modules unique"""
         all_added = True
         for module in modules:
-            if module.name in self.__lookup:
-                first = self.__lookup[module.name]
-                print(f"Found duplicate of {module.name} module name:")
-                print(f"   {first.module_file_path.as_posix()} <- first occurence")
-                print(f"   {module.module_file_path.as_posix()} <- duplicate")
+            if not self.add_one(module):
                 all_added = False
-            self.__lookup[module.name] = module
-
-            if module.module_type == ModuleType.GITCLONE:
-                self.__has_external_dependencies = True
         return all_added
 
     def ensure_dpependency_graph_is_valid(self) -> bool:
@@ -157,23 +165,76 @@ def main():
     module_registry = ModuleRegistry()
     cloned_repo_registry = ClonedRepoRegistry(ctx)
 
-    # Gather modules
-    for modules_dir in ctx.all_modules_dirs:
-        if not module_registry.add(map(Module, modules_dir.rglob("*.module.json"))):
-            print(f"Failed to add modules from path {modules_dir}")
+    modules_dirs_queue: list[Path] = list(ctx.all_modules_dirs)
+    packages_queue: list[tuple[str, str]] = list()  # list of tuples. first item is git url, second is tag
+
+    all_modules_ok = True
+
+    def add_package(package_uri: str, package_tag: str):
+        nonlocal all_modules_ok
+        prefix = "https://github.com/"
+        if not package_uri.startswith(package_uri):
+            all_modules_ok = False
+            print(f"Unexpected module uri. Should start with {prefix}")
             return
+
+        subdir = package_uri.replace(prefix, "")
+        if len(subdir) == 0:
+            all_modules_ok = False
+            print(f"Unexpected module uri. Expected to contain repository path after {prefix}")
+            return
+
+        if cloned_repo_registry.exists_and_same_ref(subdir, package_uri, package_tag):
+            return
+
+        subdir = Path(subdir)
+        if not cloned_repo_registry.fetch_repo(subdir, package_uri, package_tag):
+            print(f"Failed to clone this uri: {package_uri}. Check it exists and has {package_tag} branch or tag")
+            all_modules_ok = False
+
+        full_package_package_path = ctx.project_config.cloned_repos_dir / subdir
+        modules_dirs_queue.append(full_package_package_path)
+
+        for package_json_path in list(full_package_package_path.rglob("*.package.json")):
+            package_json = json_utils.read_json_file(package_json_path)
+            dependencies: dict = package_json.get("Dependencies", dict())
+            git_packages: list[str] = dependencies.get("GitPackages", list())
+            for git_dep in git_packages:
+                packages_queue.append((git_dep, "main"))
+
+    def add_module(module: Module):
+        nonlocal all_modules_ok
+        if not module_registry.add_one(module):
+            all_modules_ok = False
+            return
+
+        for package_uri in module.git_packages:
+            packages_queue.append((package_uri, "main"))
+
+        if module.module_type == ModuleType.GITCLONE:
+            if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
+                all_modules_ok = False
+                return
+
+    while modules_dirs_queue or packages_queue:
+        while modules_dirs_queue:
+            modules_dir = modules_dirs_queue.pop()
+            for module_file_path in modules_dir.rglob("*.module.json"):
+                module = Module(module_file_path)
+                add_module(module)
+        while packages_queue:
+            git_url, tag = packages_queue.pop()
+            add_package(git_url, tag)
+
+    if not all_modules_ok:
+        print(f"Failed to add some modules")
+        return
 
     if not module_registry.ensure_single_module_rules():
         return
 
     if not module_registry.ensure_dpependency_graph_is_valid():
         return
-
-    for module_name in module_registry.toplogical_sort():
-        module = module_registry.find(module_name)
-        if module.module_type == ModuleType.GITCLONE:
-            if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
-                return False
 
     yae_root_var = "YAE_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"

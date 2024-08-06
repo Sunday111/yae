@@ -1,4 +1,4 @@
-from typing import Iterable, Callable, Generator
+from typing import Iterable, Generator
 import enum
 from pathlib import Path
 from global_context import GlobalContext
@@ -51,6 +51,7 @@ class Module:
         key_public = "Public"
         key_private = "Private"
         dependedncies: dict = file_data.get(key_dependencies, {})
+        self.__git_packages: list[str] = dependedncies.get("GitPackages", list())
         self.__private_modules = dependedncies.get(key_private, dict())
         self.__public_modules = dependedncies.get(key_public, dict())
 
@@ -120,7 +121,7 @@ class Module:
 
     def cmake_subdirectory(self, ctx: GlobalContext) -> Path:
         if self.module_type == ModuleType.GITCLONE:
-            return (ctx.project_config.cloned_modules_dir / self.local_path).relative_to(ctx.root_dir)
+            return (ctx.project_config.cloned_repos_dir / self.local_path).relative_to(ctx.root_dir)
         return self.root_dir.relative_to(ctx.root_dir)
 
     @property
@@ -148,3 +149,7 @@ class Module:
     @property
     def specifies_lto(self) -> bool:
         return not (self.enable_lto is None)
+
+    @property
+    def git_packages(self) -> Generator[str, None, None]:
+        yield from self.__git_packages

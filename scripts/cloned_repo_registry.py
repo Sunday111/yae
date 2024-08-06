@@ -14,7 +14,7 @@ class ClonedRepoRegistry:
         self.__read_registry_file()
 
     def fetch_repo(self, path: Path, git_url: str, git_tag: str) -> bool:
-        if path in self.cloned_repos:
+        if self.exists(path):
             existing_git_url, existing_git_tag = self.cloned_repos[path]
             if existing_git_url != git_url:
                 print(
@@ -43,7 +43,7 @@ class ClonedRepoRegistry:
                 "--branch",
                 git_tag,
                 git_url,
-                self.ctx.project_config.cloned_modules_dir / path,
+                self.ctx.project_config.cloned_repos_dir / path,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -54,6 +54,16 @@ class ClonedRepoRegistry:
         self.__save_registry_file()
 
         return True
+
+    def exists(self, path: Path) -> bool:
+        return path in self.cloned_repos
+
+    def exists_and_same_ref(self, path: Path, git_url: str, git_tag: str) -> bool:
+        if self.exists(path):
+            existing_git_url, existing_git_tag = self.cloned_repos[path]
+            return existing_git_tag == git_tag and existing_git_url == git_url
+
+        return False
 
     def __save_registry_file(self):
         converted = {
