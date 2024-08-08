@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 
+#include "EverydayTools/Bitset/BitIterator.hpp"
 #include "EverydayTools/Bitset/BitsetAdapter.hpp"
 
 static void BM_ForEach(benchmark::State& state)
