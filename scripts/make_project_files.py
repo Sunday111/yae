@@ -212,7 +212,7 @@ def main():
         full_package_package_path = ctx.project_config.cloned_repos_dir / link.subdir
         modules_dirs_queue.append(full_package_package_path)
 
-        for package_json_path in list(full_package_package_path.rglob("*.package.json")):
+        for package_json_path in sorted(full_package_package_path.rglob("*.package.json")):
             package_json = json_utils.read_json_file(package_json_path)
             dependencies: dict = package_json.get("Dependencies", dict())
             git_packages: list[str] = dependencies.get("GitPackages", list())
@@ -237,7 +237,7 @@ def main():
     while modules_dirs_queue or packages_queue:
         while modules_dirs_queue:
             modules_dir = modules_dirs_queue.pop()
-            for module_file_path in modules_dir.rglob("*.module.json"):
+            for module_file_path in sorted(modules_dir.rglob("*.module.json")):
                 add_module(Module(module_file_path))
         while packages_queue:
             package_reference = packages_queue.pop()
