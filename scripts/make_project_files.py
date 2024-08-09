@@ -186,7 +186,12 @@ def main():
     parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
     cli_parameters = parser.parse_args()
 
-    ctx = GlobalContext(project_root=cli_parameters.project_dir)
+    project_dir: Path = cli_parameters.project_dir
+    if not project_dir.is_absolute():
+        project_dir.absolute()
+    project_dir = project_dir.resolve()
+
+    ctx = GlobalContext(project_root=project_dir)
     module_registry = ModuleRegistry()
     cloned_repo_registry = ClonedRepoRegistry(ctx)
 
