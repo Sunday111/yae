@@ -207,9 +207,6 @@ def main():
             all_modules_ok = False
             return
 
-        if cloned_repo_registry.exists_and_same_ref(link.subdir, link.url, link.tag):
-            return
-
         if not cloned_repo_registry.fetch_repo(link.subdir, link.url, link.tag):
             print(f"Failed to clone this uri: {link.url}. Check it exists and has {link.tag} branch or tag")
             all_modules_ok = False
