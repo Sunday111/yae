@@ -220,7 +220,6 @@ def main():
             git_packages: list[str] = dependencies.get("GitPackages", list())
             for git_dep in git_packages:
                 packages_queue.append(git_dep)
-                print(f"yoyoyo {git_dep}")
 
     def add_module(module: Module):
         nonlocal all_modules_ok
