@@ -26,8 +26,10 @@ def main():
         print(f"{registry_path} does not exist or not a file. Skipping checking cloned modules")
 
     for path in paths:
-        print(path)
-        subprocess.run(args=["git", "status"], check=True, cwd=path)
+        result = subprocess.run(args=["git", "diff", "--quiet"], cwd=path)
+        if result.returncode != 0:
+            print(path)
+            subprocess.run(args=["git", "status"], check=True, cwd=path)
 
 
 if __name__ == "__main__":
