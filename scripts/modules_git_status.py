@@ -29,7 +29,8 @@ def main():
         result = subprocess.run(args=["git", "diff", "--quiet"], cwd=path)
         if result.returncode != 0:
             print(path)
-            subprocess.run(args=["git", "status"], check=True, cwd=path)
+            subprocess.run(args=["git", "status", "--short"], check=True, cwd=path)
+            print()
 
 
 if __name__ == "__main__":
