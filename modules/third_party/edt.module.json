@@ -1,7 +1,7 @@
 {
     "ModuleType": "GitClone",
     "GitUrl": "https://github.com/Sunday111/EverydayTools",
-    "GitTag": "for_yae",
+    "GitTag": "master",
     "TargetName": "edt",
     "LocalPath": "Sunday111/EverydayTools",
     "CMakeOptions": {
