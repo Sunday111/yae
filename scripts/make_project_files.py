@@ -258,11 +258,16 @@ def main():
     project_root_var = "YAE_PROJECT_ROOT"
 
     def copy_after_build(gen: CMakeGenerator, module: Module):
-        for copy_dir in module.post_build_copy_dirs:
-            gen.line(f"add_custom_command(TARGET {module.cmake_target_name}")
-            gen.line(f"    POST_BUILD COMMAND ${{CMAKE_COMMAND}} -E copy_directory")
-            gen.line(f'    "${{CMAKE_CURRENT_SOURCE_DIR}}/{copy_dir.relative_to(module.root_dir)}"')
-            gen.line(f"    ${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{copy_dir.stem})")
+        copy_dirs = list(sorted(module.post_build_copy_dirs))
+        if len(copy_dirs) > 0:
+            gen.line(f"add_custom_target({module.cmake_target_name}_copy_files ALL")
+            for copy_dir in copy_dirs:
+                command = f"    ${{CMAKE_COMMAND}} -E copy_directory"
+                command += f' "${{CMAKE_CURRENT_SOURCE_DIR}}/{copy_dir.relative_to(module.root_dir)}"'
+                command += f" ${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{copy_dir.stem}"
+                gen.line(command)
+            gen.line(")")
+            gen.line(f"add_dependencies({module.cmake_target_name}_copy_files {module.cmake_target_name})")
 
     with open(CMakeGenerator.make_file_path(ctx.root_dir), mode="w", encoding="utf-8") as file:
         gen = CMakeGenerator(file)
