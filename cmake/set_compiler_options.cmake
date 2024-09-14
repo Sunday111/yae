@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 function(set_generic_compiler_options target_name access)
     if(MSVC)
         set(compile_opts
+            /MP
             /W4
             /permissive- # Enforces standards conformance.
             /w14242 # 'identfier': conversion from 'type1' to 'type1', possible loss of data
