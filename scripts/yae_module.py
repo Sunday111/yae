@@ -37,7 +37,10 @@ class Module:
         self.__cmake_target_name: None | str = json.get("TargetName", None)
         self.__enable_testing: bool = json.get("EnableTesting", False)
         self.__cmake_options: dict[str, bool | int | str] = json.get("CMakeOptions", {})
+        self.__cmake_modular_targets = json.get("CMakeModularTargets", list())
+        self.__cmake_exclude_from_all = json.get("CMakeExcludeFromAll", False)
         self.__enable_lto: bool | None = json.get("EnableLTO", None)
+        self.__extra_cmake_files: list[str] = json.get("ExtraCMakeFiles", [])
 
         if self.module_type == ModuleType.GITCLONE:
             self.__local_path = Path(json["LocalPath"])
@@ -109,6 +112,10 @@ class Module:
         return self.__module_type
 
     @property
+    def extra_cmake_files(self) -> Generator[Path, None, None]:
+        yield from self.__extra_cmake_files
+
+    @property
     def source_files(self) -> Iterable[Path]:
         """Yields all source files for module"""
 
@@ -129,6 +136,14 @@ class Module:
         if self.__cmake_target_name is None:
             return self.name
         return self.__cmake_target_name
+
+    @property
+    def cmake_exclude_from_all(self) -> bool:
+        return self.__cmake_exclude_from_all
+
+    @property
+    def cmake_modular_tragets(self) -> list[str]:
+        return self.__cmake_modular_targets
 
     @property
     def enable_testing(self) -> bool:

@@ -336,8 +336,7 @@ def main():
                             if not gen.option(variable_name, variable_value):
                                 return
 
-                        is_system = True
-                        gen.add_subdirectory(path, is_system)
+                        gen.add_subdirectory(path, is_system=True, exclude_from_all=module.cmake_exclude_from_all)
                         copy_after_build(gen, module)
                         gen.line()
                         added_subdirs.add(path)
@@ -346,7 +345,7 @@ def main():
         for module_name in top_sorted:
             module = module_registry.find(module_name)
             if module.module_type != ModuleType.GITCLONE:
-                gen.add_subdirectory(module.cmake_subdirectory(ctx))
+                gen.add_subdirectory(module.cmake_subdirectory(ctx), exclude_from_all=module.cmake_exclude_from_all)
 
         gen.line()
         gen.line("enable_testing()")
@@ -394,16 +393,24 @@ def main():
                 private_access = public_access
 
             def to_cmake_modules(modules: Iterable[str]) -> list[str]:
-                def convert(module: str) -> str:
-                    return module_registry.find(module).cmake_target_name
+                result = list()
+                for name in modules:
+                    module = module_registry.find(name)
+                    if len(module.cmake_modular_tragets) > 0:
+                        result.extend(module.cmake_modular_tragets)
+                    else:
+                        result.append(module.cmake_target_name)
 
-                return list(map(convert, modules))
+                return result
 
             gen.line(f"set_generic_compiler_options({module.name} {private_access})")
             gen.target_link_libraries(module.name, public_access, to_cmake_modules(module.public_dependencies))
             gen.target_link_libraries(module.name, private_access, to_cmake_modules(module.private_dependencies))
             gen.target_include_directories(module.name, public_access, [Path("code/public")])
             gen.target_include_directories(module.name, private_access, [Path("code/private")])
+
+            for extra_cmake in module.extra_cmake_files:
+                gen.include(f"${{CMAKE_CURRENT_SOURCE_DIR}}/{extra_cmake}.cmake")
 
             if module.specifies_lto:
                 if module.enable_lto:
