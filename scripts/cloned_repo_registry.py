@@ -34,20 +34,25 @@ class ClonedRepoRegistry:
         print(f"    tag: {git_tag}")
 
         start_time = time.time()
-        subprocess.check_call(
-            [
-                "git",
-                "clone",
-                "--depth",
-                "1",
-                "--branch",
-                git_tag,
-                git_url,
-                self.ctx.project_config.cloned_repos_dir / path,
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        clone_cmd = [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            git_tag,
+            git_url,
+            (self.ctx.project_config.cloned_repos_dir / path).as_posix(),
+        ]
+        try:
+            subprocess.check_call(
+                clone_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.CalledProcessError as err:
+            print(f'Failed to clone repository. Command: {" ".join(err.cmd)}. Return code: {err.returncode}')
+            raise
         print(f"    time: {time.time() - start_time:.2f}s")
 
         # if clone happens without problems, dump registry to disk
