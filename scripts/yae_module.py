@@ -39,6 +39,8 @@ class Module:
         self.__cmake_options: dict[str, bool | int | str] = json.get("CMakeOptions", {})
         self.__cmake_modular_targets = json.get("CMakeModularTargets", list())
         self.__cmake_exclude_from_all = json.get("CMakeExcludeFromAll", False)
+        self.__cmake_add_subdirectory = json.get("CMakeAddSubdirectory", True)
+        self.__generate_cmake_file = json.get("GenerateCMakeFile", True)
         self.__enable_lto: bool | None = json.get("EnableLTO", None)
         self.__extra_cmake_files: list[str] = json.get("ExtraCMakeFiles", [])
 
@@ -126,10 +128,18 @@ class Module:
         for suffix in suffixes():
             yield from self.root_dir.rglob(f"*{suffix}")
 
-    def cmake_subdirectory(self, ctx: GlobalContext) -> Path:
+    @property
+    def should_add_sbudirectory(self) -> bool:
+        return self.__cmake_add_subdirectory
+
+    def cmake_subdirectory(self, ctx: GlobalContext) -> Path | None:
         if self.module_type == ModuleType.GITCLONE:
             return (ctx.project_config.cloned_repos_dir / self.local_path).relative_to(ctx.root_dir)
         return self.root_dir.relative_to(ctx.root_dir)
+
+    @property
+    def generate_cmake_file(self) -> bool:
+        return self.__generate_cmake_file
 
     @property
     def cmake_target_name(self) -> str:

@@ -328,18 +328,25 @@ def main():
 
             for module_name in top_sorted:
                 module = module_registry.find(module_name)
-                if module.module_type == ModuleType.GITCLONE:
-                    path = module.cmake_subdirectory(ctx)
-                    if path not in added_subdirs:
-                        gen.line(f"# {module.git_url} {module.git_tag}")
-                        for variable_name, variable_value in module.cmake_options.items():
-                            if not gen.option(variable_name, variable_value):
-                                return
+                if module.module_type != ModuleType.GITCLONE:
+                    continue
 
-                        gen.add_subdirectory(path, is_system=True, exclude_from_all=module.cmake_exclude_from_all)
-                        copy_after_build(gen, module)
-                        gen.line()
-                        added_subdirs.add(path)
+                path = module.cmake_subdirectory(ctx)
+                if path in added_subdirs:
+                    continue
+
+                gen.line(f"# {module.git_url} {module.git_tag}")
+                gen.line(f"set(YAE_CLONED_{module.name} ${{CMAKE_CURRENT_SOURCE_DIR}}/{path.as_posix()})")
+
+                if module.should_add_sbudirectory:
+                    for variable_name, variable_value in module.cmake_options.items():
+                        if not gen.option(variable_name, variable_value):
+                            return
+
+                    gen.add_subdirectory(path, is_system=True, exclude_from_all=module.cmake_exclude_from_all)
+                    copy_after_build(gen, module)
+                    gen.line()
+                    added_subdirs.add(path)
 
         gen.header_comment(" Own Modules ")
         for module_name in top_sorted:
@@ -352,6 +359,9 @@ def main():
 
     for module in (module_registry.find(module_name) for module_name in module_registry.toplogical_sort()):
         if module.module_type == ModuleType.GITCLONE:
+            continue
+
+        if not module.generate_cmake_file:
             continue
 
         cmake_file_path = CMakeGenerator.make_file_path(module.root_dir)
