@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
 function(set_generic_compiler_options target_name access)
+    get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+
     if(MSVC)
-        set(compile_opts
+        set(cpp_compile_opts
             /MP
             /W4
             /permissive- # Enforces standards conformance.
@@ -29,7 +31,7 @@ function(set_generic_compiler_options target_name access)
 
     else()
         # command warnings for clang and gcc
-        set(compile_opts
+        set(cpp_compile_opts
             -Werror # treat warnings as errors
             -pedantic # Warn on language extensions
             -Wall -Wextra # reasonable and standard
@@ -50,7 +52,7 @@ function(set_generic_compiler_options target_name access)
         )
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "GCC")
-            list(APPEND compile_opts
+            list(APPEND cpp_compile_opts
                 -Wduplicated-cond # (only in GCC >= 6.0) warn if if / else chain has duplicated conditions
                 -Wduplicated-branches # (only in GCC >= 7.0) warn if if / else branches have duplicated code
                 -Wlogical-op # (only in GCC) warn about logical operations being used where bitwise were probably wanted
@@ -58,11 +60,23 @@ function(set_generic_compiler_options target_name access)
             )
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             # only special branch of Clang currently but it is really helpful
-            # list(APPEND compile_opts
+            # list(APPEND cpp_compile_opts
             # -Wlifetime # shows object lifetime issues
             # )
         endif()
     endif()
 
-    target_compile_options(${target_name} ${access} ${compile_opts})
+    if("CXX" IN_LIST languages)
+        # Enable these options for C++ exclusively. The project may contain also cuda files so these will not interfere
+        target_compile_options(${target_name} ${access} $<$<COMPILE_LANGUAGE:CXX>:${cpp_compile_opts}>)
+    endif()
+
+    if ("CUDA" IN_LIST languages)
+        set(cuda_compile_opts
+            --Werror cross-execution-space-call
+            --expt-relaxed-constexpr
+        )
+        target_compile_options(${target_name} ${access} $<$<COMPILE_LANGUAGE:CUDA>:${cuda_compile_opts}>)
+    endif()
+
 endfunction()

@@ -369,19 +369,20 @@ def main():
             gen = CMakeGenerator(file)
             gen.version_line(3, 20)
 
-            src_var_name = "module_source_files"
-
             rel_sources = sorted(path.relative_to(module.root_dir) for path in module.source_files)
 
-            has_cpp_files = any(
-                any(path.suffix == suffix for suffix in yae_module.CPP_SUFFIXES) for path in rel_sources
-            )
+            has_cpp_files = any(path.suffix in yae_module.CPP_SUFFIXES for path in rel_sources)
+            has_cuda_files = any(path.suffix in yae_module.CUDA_SUFFIXES for path in rel_sources)
             is_interface_library = False
+
+            if has_cuda_files:
+                gen.line("enable_language(CUDA)")
 
             gen.include("set_compiler_options")
             if module.specifies_lto:
                 gen.include("yae_lto")
 
+            src_var_name = "module_source_files"
             gen.make_paths_list_variable(src_var_name, rel_sources)
 
             if module.module_type == ModuleType.LIBRARY:

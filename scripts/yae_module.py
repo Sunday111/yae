@@ -7,6 +7,7 @@ import json_utils
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]
+CUDA_SUFFIXES = [".cu"]
 
 
 class ModuleType(enum.Enum):
@@ -124,6 +125,7 @@ class Module:
         def suffixes() -> Iterable[str]:
             yield from CPP_SUFFIXES
             yield from HPP_SUFFIXES
+            yield from CUDA_SUFFIXES
 
         for suffix in suffixes():
             yield from self.root_dir.rglob(f"*{suffix}")
