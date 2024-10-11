@@ -195,6 +195,7 @@ def main():
     module_registry = ModuleRegistry()
     cloned_repo_registry = ClonedRepoRegistry(ctx)
 
+    added_packages: dict[str, GitHubLink] = dict()  # Map from url to link
     modules_dirs_queue: list[Path] = list(ctx.all_modules_dirs)
     packages_queue: list[str] = list()  # list of package references
 
@@ -206,6 +207,16 @@ def main():
         if link is None:
             all_modules_ok = False
             return
+
+        if link.url in added_packages:
+            existing = added_packages[link.url]
+            if existing != link:
+                print(
+                    f"Packages with the same address must be identical. Existing: {existing.url} {existing.tag} {existing.subdir}. New one: {link.url} {link.tag} {link.subdir}"
+                )
+                raise RuntimeError()
+            return
+        added_packages[link.url] = link
 
         if not cloned_repo_registry.fetch_repo(link.subdir, link.url, link.tag):
             print(f"Failed to clone this uri: {link.url}. Check it exists and has {link.tag} branch or tag")
