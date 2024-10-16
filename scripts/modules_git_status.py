@@ -11,10 +11,13 @@ YAE_ROOT = SCRIPT_DIR.parent
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
+    parser.add_argument(
+        "--external_modules_dir", type=Path, required=False, help="Path to directory where external rpositories live"
+    )
     cli_parameters = parser.parse_args()
     project_dir: Path = cli_parameters.project_dir
 
-    config = project_config.ProjectConfig(project_dir)
+    config = project_config.ProjectConfig(project_dir, cloned_repositories_dir=cli_parameters.external_modules_dir)
     paths: list[Path] = [YAE_ROOT]
 
     registry_path = config.cloned_modules_registry_file

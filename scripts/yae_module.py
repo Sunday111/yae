@@ -134,11 +134,6 @@ class Module:
     def should_add_sbudirectory(self) -> bool:
         return self.__cmake_add_subdirectory
 
-    def cmake_subdirectory(self, ctx: GlobalContext) -> Path | None:
-        if self.module_type == ModuleType.GITCLONE:
-            return (ctx.project_config.cloned_repos_dir / self.local_path).relative_to(ctx.root_dir)
-        return self.root_dir.relative_to(ctx.root_dir)
-
     @property
     def generate_cmake_file(self) -> bool:
         return self.__generate_cmake_file

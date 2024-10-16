@@ -18,9 +18,20 @@ class CMakeGenerator:
         """Project line"""
         self.__write(f"project({project_name})\n")
 
-    def add_subdirectory(self, path: Path, is_system: bool = False, exclude_from_all: bool = False):
+    def add_subdirectory(
+        self,
+        path: Path | str,
+        is_system: bool = False,
+        exclude_from_all: bool = False,
+        build_directory: str | None = None,
+    ):
         """add_subdirectory(path)"""
-        self.__write(f"add_subdirectory({path.as_posix()}")
+        if isinstance(path, str):
+            self.__write(f"add_subdirectory({path}")
+        else:
+            self.__write(f"add_subdirectory({path.as_posix()}")
+        if build_directory is not None:
+            self.__write(f" {build_directory}")
         if is_system:
             self.__write(" SYSTEM")
         if exclude_from_all:

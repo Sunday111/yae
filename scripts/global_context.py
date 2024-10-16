@@ -6,10 +6,10 @@ from project_config import ProjectConfig
 class GlobalContext:
     """Global state of the script"""
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path, external_modules_dir: Path | None):
         self.__scripts_dir = Path(__file__).parent.resolve()
         self.__yae_root_dir = self.__scripts_dir.parent.resolve()
-        self.__project_config = ProjectConfig(project_root)
+        self.__project_config = ProjectConfig(project_root, external_modules_dir)
         self.__yae_modules_dir = (self.__yae_root_dir / "modules").resolve()
         self.__generated_dir = self.__yae_root_dir / "generated"
 
