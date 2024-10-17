@@ -6,7 +6,7 @@ from global_context import GlobalContext
 import time
 
 
-class ClonedRepoRegistry:
+class ClonedRepositoryRegistry:
     def __init__(self, ctx: GlobalContext):
         self.cloned_repos: dict[Path, tuple[str, str]] = dict()
         self.ctx = ctx
@@ -85,4 +85,5 @@ class ClonedRepoRegistry:
             for path_str, identifier in json_utils.read_json_file(
                 self.ctx.project_config.cloned_modules_registry_file
             ).items():
-                self.cloned_repos[Path(path_str)] = identifier["GitUrl"], identifier["GitTag"]
+                if (self.ctx.project_config.cloned_repos_dir / str(path_str)).exists():
+                    self.cloned_repos[Path(path_str)] = identifier["GitUrl"], identifier["GitTag"]

@@ -1,9 +1,9 @@
 from typing import Iterable, Generator
 import enum
 from pathlib import Path
-from global_context import GlobalContext
 
 import json_utils
+import yae_constants
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]
@@ -57,7 +57,6 @@ class Module:
         key_public = "Public"
         key_private = "Private"
         dependedncies: dict = file_data.get(key_dependencies, {})
-        self.__git_packages: list[str] = dependedncies.get("GitPackages", list())
         self.__private_modules = dependedncies.get(key_private, dict())
         self.__public_modules = dependedncies.get(key_public, dict())
 
@@ -172,6 +171,14 @@ class Module:
     def specifies_lto(self) -> bool:
         return not (self.enable_lto is None)
 
-    @property
-    def git_packages(self) -> Generator[str, None, None]:
-        yield from self.__git_packages
+    @classmethod
+    def glob_files_in(cls, root: Path) -> Generator[Path, None, None]:
+        return root.rglob(f"*{yae_constants.MODULE_EXT}")
+
+    @classmethod
+    def glob_in(cls, root: Path) -> Generator["Module", None, None]:
+        yield from (Module(x) for x in cls.glob_files_in(root))
+
+    @classmethod
+    def sorted_glob_in(cls, root: Path) -> list["Module"]:
+        return sorted(cls.glob_in(root), key=lambda x: x.name)

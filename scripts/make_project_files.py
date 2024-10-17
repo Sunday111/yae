@@ -5,20 +5,80 @@ from typing import Iterable
 import argparse
 
 from cmake_generator import CMakeGenerator
-from cloned_repo_registry import ClonedRepoRegistry
+from cloned_repository_registry import ClonedRepositoryRegistry
 from global_context import GlobalContext
 import yae_module
 from yae_module import Module
 from yae_module import ModuleType
 import json_utils
 import yae_module_registry
+from yae_package import Package
+from github_link import GitHubLink
+import itertools
+
+
+def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry) -> list[Package]:
+    local_packages: dict[str, Package] = dict()
+    available_packages: dict[str, tuple[Package, GitHubLink]] = dict()
+    packages_to_fetch: list[tuple[str, GitHubLink]] = list()
+    required_packages: set[str] = set()
+
+    # collect local packages and their dependencies
+    for package in ctx.project_config.packages:
+        assert package.name not in local_packages
+        local_packages[package.name] = package
+        required_packages.add(package.name)
+        for name, link in package.dependencies:
+            if name in local_packages:
+                assert link is None
+                continue
+
+            packages_to_fetch.append([name, link])
+
+    while packages_to_fetch:
+        name, link = packages_to_fetch.pop()
+        required_packages.add(name)
+
+        if name in local_packages:
+            continue
+
+        if name in available_packages:
+            if link == available_packages[name]:
+                # Package already fetched with the same link
+                continue
+            else:
+                existing_package, existing_link = available_packages[name]
+                raise RuntimeError(
+                    f"Packages with the same address must be identical. Existing: {existing_link.url} {existing_link.tag} {existing_link.subdir}. New one: {link.url} {link.tag} {link.subdir}"
+                )
+
+        if not repo_registry.fetch_repo(link.subdir, link.url, link.tag):
+            raise RuntimeError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
+
+        repo_root = ctx.project_config.cloned_repos_dir / link.subdir
+        for package in Package.glob_in(repo_root):
+            assert package.name not in available_packages
+            available_packages[package.name] = (package, link)
+            if package.name in required_packages:
+                packages_to_fetch.extend(package.dependencies)
+
+        # Ensure this package actually exists in that repository
+        if name not in available_packages:
+            raise RuntimeError(f"Could not find package {name} at {repo_root.as_posix()} ({link.url} {link.tag})")
+
+    return list(
+        filter(
+            lambda x: x.name in required_packages,
+            itertools.chain(local_packages.values(), (package for package, link in available_packages.values())),
+        )
+    )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
     parser.add_argument(
-        "--external_modules_dir", type=Path, required=False, help="Path to directory where external rpositories live"
+        "--external_modules_dir", type=Path, required=False, help="Path to directory where external repositories live"
     )
     cli_parameters = parser.parse_args()
 
@@ -28,71 +88,33 @@ def main():
     project_dir = project_dir.resolve()
 
     ctx = GlobalContext(project_root=project_dir, external_modules_dir=cli_parameters.external_modules_dir)
+    cloned_repo_registry = ClonedRepositoryRegistry(ctx)
+    packages = gather_packages(ctx, cloned_repo_registry)
+
     module_registry = yae_module_registry.ModuleRegistry()
-    cloned_repo_registry = ClonedRepoRegistry(ctx)
-
-    added_packages: dict[str, yae_module_registry.GitHubLink] = dict()  # Map from url to link
-    modules_dirs_queue: list[Path] = list(ctx.all_modules_dirs)
-    packages_queue: list[str] = list()  # list of package references
-
-    all_modules_ok = True
-
-    def add_package(package_reference: str):
-        nonlocal all_modules_ok
-        link = yae_module_registry.GitHubLink.parse(package_reference)
-        if link is None:
-            all_modules_ok = False
-            return
-
-        if link.url in added_packages:
-            existing = added_packages[link.url]
-            if existing != link:
-                print(
-                    f"Packages with the same address must be identical. Existing: {existing.url} {existing.tag} {existing.subdir}. New one: {link.url} {link.tag} {link.subdir}"
-                )
-                raise RuntimeError()
-            return
-        added_packages[link.url] = link
-
-        if not cloned_repo_registry.fetch_repo(link.subdir, link.url, link.tag):
-            print(f"Failed to clone this uri: {link.url}. Check it exists and has {link.tag} branch or tag")
-            all_modules_ok = False
-
-        full_package_package_path = ctx.project_config.cloned_repos_dir / link.subdir
-        modules_dirs_queue.append(full_package_package_path)
-
-        for package_json_path in sorted(full_package_package_path.rglob("*.package.json")):
-            package_json = json_utils.read_json_file(package_json_path)
-            dependencies: dict = package_json.get("Dependencies", dict())
-            git_packages: list[str] = dependencies.get("GitPackages", list())
-            for git_dep in git_packages:
-                packages_queue.append(git_dep)
+    add_module_errors: list[str] = list()
 
     def add_module(module: Module):
-        nonlocal all_modules_ok
         if not module_registry.add_one(module):
-            all_modules_ok = False
-            return
-
-        for package_reference in module.git_packages:
-            packages_queue.append(package_reference)
-
+            add_module_errors.append(f"Failed to add module {module.root_dir.as_posix()} from package {package.name}")
         if module.module_type == ModuleType.GITCLONE:
             if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
-                all_modules_ok = False
-                return
+                raise RuntimeError(
+                    f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
+                )
 
-    while modules_dirs_queue or packages_queue:
-        while modules_dirs_queue:
-            modules_dir = modules_dirs_queue.pop()
-            for module_file_path in sorted(modules_dir.rglob("*.module.json")):
-                add_module(Module(module_file_path))
-        while packages_queue:
-            package_reference = packages_queue.pop()
-            add_package(package_reference)
+    def add_modules(path: Path):
+        for module in Module.sorted_glob_in(path):
+            add_module(module)
 
-    if not all_modules_ok:
-        print(f"Failed to add some modules")
+    add_modules(ctx.yae_modules_dir)
+
+    for package in packages:
+        add_modules(package.modules_dir)
+
+    if add_module_errors:
+        for err in add_module_errors:
+            print(err)
         return
 
     if not module_registry.ensure_single_module_rules():

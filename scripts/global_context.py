@@ -39,11 +39,6 @@ class GlobalContext:
         return self.__yae_modules_dir
 
     @property
-    def all_modules_dirs(self) -> Generator[Path, None, None]:
-        yield self.yae_modules_dir
-        yield self.project_config.modules_dir
-
-    @property
     def scripts_dir(self) -> Path:
         """Returns path to the directory with scripts"""
         return self.__scripts_dir
