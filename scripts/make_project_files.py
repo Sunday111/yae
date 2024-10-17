@@ -10,8 +10,7 @@ from global_context import GlobalContext
 import yae_module
 from yae_module import Module
 from yae_module import ModuleType
-import json_utils
-import yae_module_registry
+from yae_module_registry import ModuleRegistry
 from yae_package import Package
 from github_link import GitHubLink
 import itertools
@@ -74,6 +73,37 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
     )
 
 
+def gather_modules(
+    ctx: GlobalContext, packages: list[Package], cloned_repo_registry: ClonedRepositoryRegistry
+) -> ModuleRegistry:
+    module_registry = ModuleRegistry()
+    add_module_errors: list[str] = list()
+
+    def add_modules(path: Path):
+        for module in Module.sorted_glob_in(path):
+            if not module_registry.add_one(module):
+                add_module_errors.append(
+                    f"Failed to add module {module.root_dir.as_posix()} from package {package.name}"
+                )
+            if module.module_type == ModuleType.GITCLONE:
+                if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
+                    add_module_errors.append(
+                        f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
+                    )
+
+    add_modules(ctx.yae_modules_dir)
+
+    for package in packages:
+        add_modules(package.modules_dir)
+
+    if add_module_errors:
+        for err in add_module_errors:
+            print(err)
+        raise RuntimeError("Failed to add some modules!")
+
+    return module_registry
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
@@ -90,32 +120,7 @@ def main():
     ctx = GlobalContext(project_root=project_dir, external_modules_dir=cli_parameters.external_modules_dir)
     cloned_repo_registry = ClonedRepositoryRegistry(ctx)
     packages = gather_packages(ctx, cloned_repo_registry)
-
-    module_registry = yae_module_registry.ModuleRegistry()
-    add_module_errors: list[str] = list()
-
-    def add_module(module: Module):
-        if not module_registry.add_one(module):
-            add_module_errors.append(f"Failed to add module {module.root_dir.as_posix()} from package {package.name}")
-        if module.module_type == ModuleType.GITCLONE:
-            if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
-                raise RuntimeError(
-                    f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
-                )
-
-    def add_modules(path: Path):
-        for module in Module.sorted_glob_in(path):
-            add_module(module)
-
-    add_modules(ctx.yae_modules_dir)
-
-    for package in packages:
-        add_modules(package.modules_dir)
-
-    if add_module_errors:
-        for err in add_module_errors:
-            print(err)
-        return
+    module_registry = gather_modules(ctx, packages, cloned_repo_registry)
 
     if not module_registry.ensure_single_module_rules():
         return

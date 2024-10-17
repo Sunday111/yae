@@ -10,7 +10,6 @@ import yae_constants
 class ModuleRegistry:
     def __init__(self):
         self.__lookup: dict[str, Module] = dict()
-        self.__has_external_dependencies = False
 
     def find(self, module_name: str) -> Module | None:
         return self.__lookup.get(module_name, None)
@@ -24,9 +23,6 @@ class ModuleRegistry:
             return False
 
         self.__lookup[module.name] = module
-
-        if module.module_type == ModuleType.GITCLONE:
-            self.__has_external_dependencies = True
 
         return True
 
@@ -143,7 +139,3 @@ class ModuleRegistry:
 
         # Reverse the result stack to get the topological ordering
         return result_stack
-
-    @property
-    def has_external_dependencies(self) -> bool:
-        return self.__has_external_dependencies
