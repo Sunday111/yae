@@ -16,7 +16,12 @@ class ProjectConfig:
             json.get("cloned_dependencies_dir"), cloned_repositories_dir
         )
         self.cloned_modules_registry_file: Path = self.cloned_repos_dir / "registry.json"
-        self.__packages = list(yae_package.Package.glob_in(root_dir))
+        self.__packages = list(
+            map(
+                yae_package.Package,
+                filter(lambda x: not x.is_relative_to(root_dir), yae_package.Package.glob_files_in(root_dir)),
+            )
+        )
 
     def __choose_cloned_repo_dir(self, json_param: str | None, cli_param: Path | None) -> Path:
         external_modules_paths: list[tuple[Path, str]] = list()
