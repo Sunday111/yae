@@ -7,3 +7,4 @@
 *.txt text eol=lf
 *.md text eol=lf
 *.cmake text eol=lf
+*.json text eol=lf
