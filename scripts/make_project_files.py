@@ -34,8 +34,6 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
 
             packages_to_fetch.append([name, link])
 
-    print(f'Local packages: {" ".join(local_packages.keys())}')
-
     while packages_to_fetch:
         name, link = packages_to_fetch.pop()
         required_packages.add(name)
