@@ -19,7 +19,9 @@ class ProjectConfig:
         self.__packages = list(
             map(
                 yae_package.Package,
-                filter(lambda x: not x.is_relative_to(root_dir), yae_package.Package.glob_files_in(root_dir)),
+                filter(
+                    lambda x: not x.is_relative_to(cloned_repositories_dir), yae_package.Package.glob_files_in(root_dir)
+                ),
             )
         )
 
