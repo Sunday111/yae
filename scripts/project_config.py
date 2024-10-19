@@ -1,6 +1,6 @@
 import json_utils
 from pathlib import Path
-import yae_package
+from yae_package import Package
 from typing import Generator
 
 
@@ -16,14 +16,12 @@ class ProjectConfig:
             json.get("cloned_dependencies_dir"), cloned_repositories_dir
         )
         self.cloned_modules_registry_file: Path = self.cloned_repos_dir / "registry.json"
-        self.__packages = list(
-            map(
-                yae_package.Package,
-                filter(
-                    lambda x: not x.is_relative_to(cloned_repositories_dir), yae_package.Package.glob_files_in(root_dir)
-                ),
-            )
-        )
+        self.__packages = list(self.__glob_local_packages())
+
+    def __glob_local_packages(self) -> Generator[Package, None, None]:
+        for path in Package.glob_files_in(self.root_dir):
+            if not path.is_relative_to(self.cloned_repos_dir):
+                yield Package(path)
 
     def __choose_cloned_repo_dir(self, json_param: str | None, cli_param: Path | None) -> Path:
         external_modules_paths: list[tuple[Path, str]] = list()
@@ -42,5 +40,5 @@ class ProjectConfig:
         return external_modules_paths[0][0]
 
     @property
-    def packages(self) -> Generator[yae_package.Package, None, None]:
+    def packages(self) -> Generator[Package, None, None]:
         yield from self.__packages
