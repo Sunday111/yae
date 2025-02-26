@@ -233,8 +233,9 @@ def main():
                     if not gen.option(variable_name, variable_value):
                         return
 
+                local_cmake_file_path = f"/{module.cmake_file_path}" if module.cmake_file_path else ""
                 gen.add_subdirectory(
-                    f"${{{variable_with_path_to_module}}}",
+                    f"${{{variable_with_path_to_module}}}{local_cmake_file_path}",
                     is_system=True,
                     exclude_from_all=module.cmake_exclude_from_all,
                     build_directory=f"yae_modules/{module_local_path.as_posix()}",

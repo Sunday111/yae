@@ -34,6 +34,7 @@ class Module:
         if self.module_type == ModuleType.GITCLONE:
             self.__git_url = json["GitUrl"]
             self.__git_tag = json["GitTag"]
+        self.__cmake_file_path = json.get("CMakeFilePath", "")
 
         self.__cmake_target_name: None | str = json.get("TargetName", None)
         self.__enable_testing: bool = json.get("EnableTesting", False)
@@ -64,6 +65,10 @@ class Module:
         key_module_type = "ModuleType"
         module_type_str: str = file_data[key_module_type]
         self.__module_type = ModuleType[module_type_str.upper()]
+
+    @property
+    def cmake_file_path(self) -> Path:
+        return self.__cmake_file_path
 
     @property
     def post_build_copy_dirs(self) -> Generator[Path, None, None]:
