@@ -24,7 +24,7 @@ function(enable_lto_globally)
         set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
     endif(POLICY CMP0069)
 
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE CACHE BOOL "Enable LTO globally")
 endfunction(enable_lto_globally)
 
 function(disable_lto_globally)
@@ -33,7 +33,7 @@ function(disable_lto_globally)
         set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
     endif(POLICY CMP0069)
 
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Enable LTO globally")
 endfunction()
 
 function(enable_lto_for target_name)
