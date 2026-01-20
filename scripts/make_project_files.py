@@ -244,6 +244,10 @@ def main():
                 gen.line()
                 added_subdirs.add(module_sources_path)
 
+            for extra_cmake in module.extra_cmake_files:
+                p = module.root_dir.relative_to(project_dir)
+                gen.include(f"${{YAE_PROJECT_ROOT}}/{p}/{extra_cmake}.cmake")
+
         gen.line()
         gen.line("enable_testing()")
 
