@@ -51,9 +51,6 @@ class BuildCommand(Command):
 
         run_target = getattr(args, "run_target", None)
         if run_target:
-            result = [run_target]
-            if copy_target := default_configuration.get("run_copy_target"):
-                result.append(copy_target)
-            return result
+            return [run_target]
 
         return default_configuration.get("build_targets", [])
