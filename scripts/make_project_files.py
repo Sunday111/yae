@@ -179,6 +179,8 @@ def main():
             gen.line(
                 f"set({external_modules_var_name} ${{CMAKE_CURRENT_SOURCE_DIR}}/{ctx.project_config.cloned_repos_dir.relative_to(ctx.root_dir).as_posix()})"
             )
+        else:
+            gen.line(f"set({external_modules_var_name} {ctx.project_config.cloned_repos_dir.as_posix()})")
 
         gen.line()
         if ctx.yae_root_dir.is_relative_to(ctx.project_root_dir):
@@ -186,8 +188,12 @@ def main():
             project_rel_path = ctx.yae_root_dir.relative_to(ctx.project_root_dir)
             gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}/{project_rel_path.as_posix()}")')
         else:
-            # project is part of the engine
-            gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
+            gen.line(f'set({yae_root_var} "$ENV{{{yae_root_var}}}" CACHE PATH "Path to yae checkout")')
+            gen.line(f"if(NOT {yae_root_var})")
+            gen.line(
+                f'    message(FATAL_ERROR "{yae_root_var} is required when yae lives outside the project source tree")'
+            )
+            gen.line("endif()")
 
         gen.line(f'set({project_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
         gen.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};${{{yae_root_var}}}/cmake")')
@@ -216,6 +222,9 @@ def main():
                 if module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.root_dir):
                     module_local_path = module.root_dir.relative_to(ctx.root_dir)
                     module_sources_path = module_local_path.as_posix()
+                elif module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.yae_root_dir):
+                    module_local_path = module.root_dir.relative_to(ctx.yae_root_dir)
+                    module_sources_path = f"${{{yae_root_var}}}/{module_local_path.as_posix()}"
                 else:
                     module_local_path = module.root_dir.relative_to(ctx.project_config.cloned_repos_dir)
                     module_sources_path = f"${{{external_modules_var_name}}}/{module_local_path.as_posix()}"
@@ -245,8 +254,15 @@ def main():
                 added_subdirs.add(module_sources_path)
 
             for extra_cmake in module.extra_cmake_files:
-                p = module.root_dir.relative_to(project_dir)
-                gen.include(f"${{YAE_PROJECT_ROOT}}/{p}/{extra_cmake}.cmake")
+                if module.root_dir.is_relative_to(project_dir):
+                    p = module.root_dir.relative_to(project_dir)
+                    gen.include(f"${{{project_root_var}}}/{p}/{extra_cmake}.cmake")
+                elif module.root_dir.is_relative_to(ctx.yae_root_dir):
+                    p = module.root_dir.relative_to(ctx.yae_root_dir)
+                    gen.include(f"${{{yae_root_var}}}/{p}/{extra_cmake}.cmake")
+                else:
+                    p = module.root_dir.relative_to(ctx.project_config.cloned_repos_dir)
+                    gen.include(f"${{{external_modules_var_name}}}/{p}/{extra_cmake}.cmake")
 
         gen.line()
         gen.line("enable_testing()")
