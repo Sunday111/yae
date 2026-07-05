@@ -34,8 +34,12 @@ From another directory:
 
 Commands can depend on other commands. `configure` depends on `generate`, `build` depends on `configure`, and `run`
 depends on `build`. Project-specific defaults can be stored in `yae_project.json` under `default_configuration`,
-including `build_targets`, `run_target`, and `run_copy_target`. `run` uses `run_target` by default; pass a positional
-target name to override it.
+including `build_targets` and `run_target`. `run` uses `run_target` by default; pass a positional target name to
+override it.
+
+YAE injects `https://github.com/Sunday111/yae-support` as an implicit package dependency. That package provides the
+CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
+depend on the location of the YAE CLI checkout.
 
 Machine-specific overrides can be stored next to `yae_project.json` in `local-config.json`. This file is merged into
 `default_configuration`, so either of these forms is valid:

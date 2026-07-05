@@ -1,8 +1,0 @@
-{
-    "ModuleType": "Executable",
-    "EnableTesting": true,
-    "Dependencies": {
-        "Public": ["yae_example_library", "yae_example_header_only", "gtest_main"],
-        "Private": []
-    }
-}

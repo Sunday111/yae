@@ -125,7 +125,6 @@ def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
 
 
 def run_cmake_configure(
-    yae_root: Path,
     project_dir: Path,
     build_dir_override: Path | None,
     extra_cmake_args: list[str],
@@ -147,7 +146,6 @@ def run_cmake_configure(
         command.extend(["-G", str(generator)])
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
-    definitions["YAE_ROOT"] = yae_root.as_posix()
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
     command.extend(extra_cmake_args)
 

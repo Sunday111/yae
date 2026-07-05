@@ -29,7 +29,6 @@ class ConfigureCommand(Command):
             cmake_args = cmake_args[1:]
 
         run_cmake_configure(
-            context.yae_root,
             get_project_dir(args),
             get_build_dir_override(args),
             cmake_args,

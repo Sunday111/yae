@@ -16,6 +16,10 @@ from github_link import GitHubLink
 import itertools
 
 
+YAE_SUPPORT_PACKAGE_NAME = "yae-support"
+YAE_SUPPORT_PACKAGE_LINK = GitHubLink.parse("https://github.com/Sunday111/yae-support main")
+
+
 def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry) -> list[Package]:
     local_packages: dict[str, Package] = dict()
     available_packages: dict[str, tuple[Package, GitHubLink]] = dict()
@@ -34,6 +38,10 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
 
             packages_to_fetch.append([name, link])
 
+    required_packages.add(YAE_SUPPORT_PACKAGE_NAME)
+    if YAE_SUPPORT_PACKAGE_NAME not in local_packages:
+        packages_to_fetch.append((YAE_SUPPORT_PACKAGE_NAME, YAE_SUPPORT_PACKAGE_LINK))
+
     while packages_to_fetch:
         name, link = packages_to_fetch.pop()
         required_packages.add(name)
@@ -42,11 +50,11 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
             continue
 
         if name in available_packages:
-            if link == available_packages[name]:
+            existing_package, existing_link = available_packages[name]
+            if link == existing_link:
                 # Package already fetched with the same link
                 continue
             else:
-                existing_package, existing_link = available_packages[name]
                 raise RuntimeError(
                     f"Packages with the same address must be identical. Existing: {existing_link.url} {existing_link.tag} {existing_link.subdir}. New one: {link.url} {link.tag} {link.subdir}"
                 )
@@ -91,8 +99,6 @@ def gather_modules(
                         f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
                     )
 
-    add_modules(ctx.yae_modules_dir)
-
     for package in packages:
         add_modules(package.modules_dir)
 
@@ -128,8 +134,19 @@ def main():
     if not module_registry.ensure_dpependency_graph_is_valid():
         return
 
-    yae_root_var = "YAE_ROOT"
+    support_package = next(package for package in packages if package.name == YAE_SUPPORT_PACKAGE_NAME)
+    support_root_var = "YAE_SUPPORT_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"
+
+    def cmake_source_path(path: Path) -> str:
+        path = path.resolve()
+        if path.is_relative_to(ctx.project_config.cloned_repos_dir):
+            rel_path = path.relative_to(ctx.project_config.cloned_repos_dir)
+            return f"${{{external_modules_var_name}}}/{rel_path.as_posix()}"
+        if path.is_relative_to(ctx.root_dir):
+            rel_path = path.relative_to(ctx.root_dir)
+            return f"${{CMAKE_CURRENT_SOURCE_DIR}}/{rel_path.as_posix()}"
+        return path.as_posix()
 
     def copy_after_build(gen: CMakeGenerator, module: Module):
         copy_dirs = list(sorted(module.post_build_copy_dirs))
@@ -141,7 +158,7 @@ def main():
                 command += f" ${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{copy_dir.stem}"
                 gen.line(command)
             gen.line(")")
-            gen.line(f"add_dependencies({module.cmake_target_name}_copy_files {module.cmake_target_name})")
+            gen.line(f"add_dependencies({module.cmake_target_name} {module.cmake_target_name}_copy_files)")
 
     with open(CMakeGenerator.make_file_path(ctx.root_dir), mode="w", encoding="utf-8") as file:
         gen = CMakeGenerator(file)
@@ -183,20 +200,9 @@ def main():
             gen.line(f"set({external_modules_var_name} {ctx.project_config.cloned_repos_dir.as_posix()})")
 
         gen.line()
-        if ctx.yae_root_dir.is_relative_to(ctx.project_root_dir):
-            # engine is part of the project
-            project_rel_path = ctx.yae_root_dir.relative_to(ctx.project_root_dir)
-            gen.line(f'set({yae_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}/{project_rel_path.as_posix()}")')
-        else:
-            gen.line(f'set({yae_root_var} "$ENV{{{yae_root_var}}}" CACHE PATH "Path to yae checkout")')
-            gen.line(f"if(NOT {yae_root_var})")
-            gen.line(
-                f'    message(FATAL_ERROR "{yae_root_var} is required when yae lives outside the project source tree")'
-            )
-            gen.line("endif()")
-
+        gen.line(f'set({support_root_var} "{cmake_source_path(support_package.root_dir)}")')
         gen.line(f'set({project_root_var} "${{CMAKE_CURRENT_SOURCE_DIR}}")')
-        gen.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};${{{yae_root_var}}}/cmake")')
+        gen.line(f'set(CMAKE_MODULE_PATH "${{CMAKE_MODULE_PATH}};${{{support_root_var}}}/cmake")')
         gen.line()
         gen.line()
 
@@ -219,15 +225,15 @@ def main():
                 module_local_path = Path(module.local_path)
                 module_sources_path = f"${{{external_modules_var_name}}}/{module_local_path.as_posix()}"
             else:
-                if module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.root_dir):
-                    module_local_path = module.root_dir.relative_to(ctx.root_dir)
-                    module_sources_path = module_local_path.as_posix()
-                elif module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.yae_root_dir):
-                    module_local_path = module.root_dir.relative_to(ctx.yae_root_dir)
-                    module_sources_path = f"${{{yae_root_var}}}/{module_local_path.as_posix()}"
-                else:
+                if module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.project_config.cloned_repos_dir):
                     module_local_path = module.root_dir.relative_to(ctx.project_config.cloned_repos_dir)
                     module_sources_path = f"${{{external_modules_var_name}}}/{module_local_path.as_posix()}"
+                elif module.root_dir.is_absolute() and module.root_dir.is_relative_to(ctx.root_dir):
+                    module_local_path = module.root_dir.relative_to(ctx.root_dir)
+                    module_sources_path = module_local_path.as_posix()
+                else:
+                    module_local_path = module.root_dir
+                    module_sources_path = module.root_dir.as_posix()
 
             if module_sources_path in added_subdirs:
                 continue
@@ -254,15 +260,7 @@ def main():
                 added_subdirs.add(module_sources_path)
 
             for extra_cmake in module.extra_cmake_files:
-                if module.root_dir.is_relative_to(project_dir):
-                    p = module.root_dir.relative_to(project_dir)
-                    gen.include(f"${{{project_root_var}}}/{p}/{extra_cmake}.cmake")
-                elif module.root_dir.is_relative_to(ctx.yae_root_dir):
-                    p = module.root_dir.relative_to(ctx.yae_root_dir)
-                    gen.include(f"${{{yae_root_var}}}/{p}/{extra_cmake}.cmake")
-                else:
-                    p = module.root_dir.relative_to(ctx.project_config.cloned_repos_dir)
-                    gen.include(f"${{{external_modules_var_name}}}/{p}/{extra_cmake}.cmake")
+                gen.include(f"{cmake_source_path(module.root_dir)}/{extra_cmake}.cmake")
 
         gen.line()
         gen.line("enable_testing()")

@@ -10,7 +10,6 @@ class GlobalContext:
         self.__scripts_dir = Path(__file__).parent.resolve()
         self.__yae_root_dir = self.__scripts_dir.parent.resolve()
         self.__project_config = ProjectConfig(project_root, external_modules_dir)
-        self.__yae_modules_dir = (self.__yae_root_dir / "modules").resolve()
         self.__generated_dir = self.__yae_root_dir / "generated"
 
     @property
@@ -32,11 +31,6 @@ class GlobalContext:
     def project_root_dir(self) -> Path:
         """Returns root directory of the project that uses yae"""
         return self.__project_config.root_dir
-
-    @property
-    def yae_modules_dir(self) -> Path:
-        """Returns path to the directory with modules"""
-        return self.__yae_modules_dir
 
     @property
     def scripts_dir(self) -> Path:

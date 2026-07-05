@@ -1,8 +1,0 @@
-{
-    "ModuleType": "Executable",
-    "EnableTesting": false,
-    "Dependencies": {
-        "Public": ["gbench_main"],
-        "Private": []
-    }
-}
