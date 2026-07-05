@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Mapping
+from collections.abc import Sequence
 import argparse
 import json
 import os
@@ -8,6 +10,36 @@ import runpy
 import shutil
 import subprocess
 import sys
+
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
+subprocess_logger = get_logger("subprocess")
+
+
+def run_subprocess(
+    command: Sequence[str],
+    *,
+    cwd: Path | None = None,
+    env: Mapping[str, str] | None = None,
+) -> None:
+    subprocess_logger.info("$ %s", " ".join(command))
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    assert process.stdout is not None
+    for line in process.stdout:
+        subprocess_logger.info("%s", line.rstrip())
+
+    return_code = process.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, command)
 
 
 def get_project_dir(args: argparse.Namespace) -> Path:
@@ -20,6 +52,7 @@ def get_build_dir_override(args: argparse.Namespace) -> Path | None:
 
 
 def run_project_file_generation(yae_root: Path, project_dir: Path, external_modules_dir: Path | None) -> None:
+    logger.info("Generating CMake files for %s", project_dir)
     script_path = yae_root / "scripts" / "make_project_files.py"
     script_args = [str(script_path), f"--project_dir={project_dir}"]
     if external_modules_dir is not None:
@@ -72,6 +105,7 @@ def get_default_configuration(project_dir: Path) -> dict:
     if not local_config_path.exists():
         return default_configuration
 
+    logger.info("Applying local configuration from %s", local_config_path)
     with open(local_config_path, mode="r", encoding="utf-8") as file:
         local_config = json.load(file)
 
@@ -98,6 +132,7 @@ def run_cmake_configure(
 ) -> None:
     default_configuration = get_default_configuration(project_dir)
     build_dir = get_build_dir(project_dir, build_dir_override)
+    logger.info("Configuring CMake project in %s", build_dir)
 
     environment = os.environ.copy()
     for name, value in default_configuration.get("environment", {}).items():
@@ -116,4 +151,4 @@ def run_cmake_configure(
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
     command.extend(extra_cmake_args)
 
-    subprocess.check_call(command, env=environment)
+    run_subprocess(command, env=environment)

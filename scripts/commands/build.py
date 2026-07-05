@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 
 from commands.base import Command
 from commands.base import CommandContext
@@ -12,6 +11,11 @@ from commands.common import get_build_dir
 from commands.common import get_build_dir_override
 from commands.common import get_default_configuration
 from commands.common import get_project_dir
+from commands.common import run_subprocess
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class BuildCommand(Command):
@@ -32,11 +36,13 @@ class BuildCommand(Command):
 
         targets = self._get_targets(args, default_configuration)
         if not targets:
-            subprocess.check_call(["cmake", "--build", build_dir.as_posix(), "--parallel"])
+            logger.info("Building default CMake target set")
+            run_subprocess(["cmake", "--build", build_dir.as_posix(), "--parallel"])
             return
 
         for target in targets:
-            subprocess.check_call(["cmake", "--build", build_dir.as_posix(), "--target", target, "--parallel"])
+            logger.info("Building target %s", target)
+            run_subprocess(["cmake", "--build", build_dir.as_posix(), "--target", target, "--parallel"])
 
     def _get_targets(self, args: argparse.Namespace, default_configuration: dict) -> list[str]:
         targets = getattr(args, "targets", None)

@@ -7,6 +7,11 @@ from commands.base import Command
 from commands.base import CommandContext
 from commands.base import add_project_dir_argument
 from commands.common import get_project_dir
+from commands.common import run_subprocess
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class CleanupCommand(Command):
@@ -26,7 +31,9 @@ class CleanupCommand(Command):
             check=False,
         ).returncode == 0
         if has_submodules:
-            subprocess.check_call(["git", "submodule", "deinit", "--force", "--all"], cwd=project_dir)
-            subprocess.check_call(["git", "submodule", "sync", "--recursive"], cwd=project_dir)
-            subprocess.check_call(["git", "submodule", "update", "--init", "--recursive"], cwd=project_dir)
-        subprocess.check_call(["git", "clean", "-ffdX"], cwd=project_dir)
+            logger.info("Recloning submodules")
+            run_subprocess(["git", "submodule", "deinit", "--force", "--all"], cwd=project_dir)
+            run_subprocess(["git", "submodule", "sync", "--recursive"], cwd=project_dir)
+            run_subprocess(["git", "submodule", "update", "--init", "--recursive"], cwd=project_dir)
+        logger.info("Deleting gitignored files")
+        run_subprocess(["git", "clean", "-ffdX"], cwd=project_dir)

@@ -14,6 +14,10 @@ from commands.common import get_build_dir
 from commands.common import get_build_dir_override
 from commands.common import get_default_configuration
 from commands.common import get_project_dir
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class RunCommand(Command):
@@ -41,12 +45,15 @@ class RunCommand(Command):
 
         build_dir = get_build_dir(project_dir, get_build_dir_override(args))
         app_path = build_dir / "bin" / run_target
+        logger.info("Running %s", app_path)
         self._run_with_discrete_gpu([app_path.as_posix(), *app_args])
 
     def _run_with_discrete_gpu(self, command: list[str]) -> None:
         if shutil.which("prime-run") is not None:
+            logger.info("Using prime-run for NVIDIA GPU offload")
             os.execvp("prime-run", ["prime-run", *command])
 
+        logger.info("Using NVIDIA PRIME environment variables")
         os.environ.setdefault("__NV_PRIME_RENDER_OFFLOAD", "1")
         os.environ.setdefault("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
         os.environ.setdefault("__VK_LAYER_NV_optimus", "NVIDIA_only")

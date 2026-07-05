@@ -1,6 +1,7 @@
 # YAE
 
-Use the `yae` entrypoint from this repository.
+Use the `yae` entrypoint from this repository. It runs through `uv`, which creates a local virtual environment in
+`.venv` and stores dependency cache data in `.cache/uv`.
 
 ## Commands
 
@@ -15,6 +16,9 @@ yae run some-code-sample
 yae format
 yae cleanup
 ```
+
+`uv` must be available on `PATH`. Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`; they are not
+installed globally.
 
 From another directory:
 

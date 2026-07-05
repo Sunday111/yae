@@ -8,10 +8,16 @@ import sys
 from commands import create_commands
 from commands.base import Command
 from commands.base import CommandContext
+from yae_logging import configure_logging
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 def create_parser(commands: list[Command]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yae")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose yae diagnostics")
     subparsers = parser.add_subparsers(dest="command")
 
     for command in commands:
@@ -52,8 +58,14 @@ def main() -> None:
         parser.print_help()
         return
 
+    project_dir = args.project_dir.resolve() if hasattr(args, "project_dir") else Path.cwd()
+    configure_logging(verbose=args.verbose, log_path=project_dir / "yae.log")
     context = CommandContext(yae_root=yae_root)
-    run_command(commands_by_name[args.command], commands_by_name, context, args, set())
+    try:
+        run_command(commands_by_name[args.command], commands_by_name, context, args, set())
+    except Exception:
+        logger.exception("Command failed")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

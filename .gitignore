@@ -1,4 +1,6 @@
 local-config.json
+.venv
+.cache
 
 ##### Windows
 # Windows thumbnail cache files

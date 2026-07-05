@@ -1,1 +1,10 @@
-scripts/yae.py
+#!/bin/sh
+set -eu
+
+launcher_path="$(readlink -f -- "$0")"
+yae_root="$(cd -- "$(dirname -- "${launcher_path}")" && pwd)"
+
+export UV_CACHE_DIR="${UV_CACHE_DIR:-"${yae_root}/.cache/uv"}"
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-"${yae_root}/.venv"}"
+
+exec uv run --project "${yae_root}" python "${yae_root}/scripts/yae.py" "$@"

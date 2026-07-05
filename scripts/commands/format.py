@@ -8,6 +8,11 @@ from commands.base import Command
 from commands.base import CommandContext
 from commands.base import add_project_dir_argument
 from commands.common import get_project_dir
+from commands.common import run_subprocess
+from yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class FormatCommand(Command):
@@ -33,4 +38,7 @@ class FormatCommand(Command):
         source_suffixes = {".c", ".cc", ".cpp", ".cxx", ".cu", ".h", ".hh", ".hpp", ".hxx"}
         files = sorted(file for file in changed_files if Path(file).suffix in source_suffixes)
         if files:
-            subprocess.check_call([args.tool, "-i", "--", *files], cwd=project_dir)
+            logger.info("Formatting %d changed source files", len(files))
+            run_subprocess([args.tool, "-i", "--", *files], cwd=project_dir)
+        else:
+            logger.info("No changed source files to format")
