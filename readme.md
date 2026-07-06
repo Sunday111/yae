@@ -17,6 +17,7 @@ yae run
 yae run some-code-sample
 yae list
 yae list --all --executables
+yae self-test
 yae format
 yae cleanup
 ```
@@ -46,7 +47,7 @@ CMake utility modules and built-in example/module declarations used by generated
 depend on the location of the YAE CLI checkout.
 
 `yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
-support packages and fetched external packages.
+support packages and fetched external packages. Use `--plain` when another script needs stable row-oriented output.
 
 Machine-specific overrides can be stored next to `yae_project.json` in `local-config.json`. This file is merged into
 `default_configuration`, so either of these forms is valid:
@@ -62,7 +63,7 @@ Machine-specific overrides can be stored next to `yae_project.json` in `local-co
 ## Self Test
 
 ```bash
-uv run --project /path/to/yae python /path/to/yae/tests/run_self_test.py
+yae self-test
 ```
 
 The self-test copies a minimal fixture project to a temporary directory, configures it, builds it, and checks that a

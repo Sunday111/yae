@@ -5,6 +5,7 @@ from yae.commands.format import FormatCommand
 from yae.commands.generate import GenerateCommand
 from yae.commands.list import ListCommand
 from yae.commands.run import RunCommand
+from yae.commands.self_test import SelfTestCommand
 
 
 def create_commands():
@@ -16,4 +17,5 @@ def create_commands():
         ListCommand(),
         FormatCommand(),
         CleanupCommand(),
+        SelfTestCommand(),
     ]

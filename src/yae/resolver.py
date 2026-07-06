@@ -145,7 +145,7 @@ def resolve_project(project_dir: Path, external_modules_dir: Path | None = None)
 
     if not module_registry.ensure_single_module_rules():
         raise RuntimeError("Module rules are invalid")
-    if not module_registry.ensure_dpependency_graph_is_valid():
+    if not module_registry.ensure_dependency_graph_is_valid():
         raise RuntimeError("Module dependency graph is invalid")
 
     return ResolvedProject(

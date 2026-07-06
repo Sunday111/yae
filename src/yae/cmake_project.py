@@ -95,7 +95,7 @@ def generate_project_files(project_dir: Path, external_modules_dir: Path | None 
         gen.line()
         gen.line()
 
-        top_sorted = module_registry.toplogical_sort()
+        top_sorted = module_registry.topological_sort()
 
         added_subdirs: set[str] = set()
         for module_name in top_sorted:
@@ -147,7 +147,7 @@ def generate_project_files(project_dir: Path, external_modules_dir: Path | None 
         gen.line()
         gen.line("enable_testing()")
 
-    for module in (module_registry.find(module_name) for module_name in module_registry.toplogical_sort()):
+    for module in (module_registry.find(module_name) for module_name in module_registry.topological_sort()):
         if module.module_type == ModuleType.GITCLONE:
             continue
 
@@ -197,8 +197,8 @@ def generate_project_files(project_dir: Path, external_modules_dir: Path | None 
                 result = list()
                 for name in modules:
                     module = module_registry.find(name)
-                    if len(module.cmake_modular_tragets) > 0:
-                        result.extend(module.cmake_modular_tragets)
+                    if len(module.cmake_modular_targets) > 0:
+                        result.extend(module.cmake_modular_targets)
                     else:
                         result.append(module.cmake_target_name)
 

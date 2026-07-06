@@ -153,7 +153,7 @@ class Module:
         return self.__cmake_exclude_from_all
 
     @property
-    def cmake_modular_tragets(self) -> list[str]:
+    def cmake_modular_targets(self) -> list[str]:
         return self.__cmake_modular_targets
 
     @property

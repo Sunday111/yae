@@ -34,7 +34,7 @@ class ModuleRegistry:
                 all_added = False
         return all_added
 
-    def ensure_dpependency_graph_is_valid(self) -> bool:
+    def ensure_dependency_graph_is_valid(self) -> bool:
         """Ensures dependncy graph can be built without cycles"""
 
         if len(self.__lookup) == 0:
@@ -80,7 +80,7 @@ class ModuleRegistry:
                 all_ok = False
         return all_ok
 
-    def __all_dependnecies_exist(self, module: Module) -> bool:
+    def __all_dependencies_exist(self, module: Module) -> bool:
         for dep in module.all_depepndencies:
             if dep not in self.__lookup:
                 print(f'"{module.name}" depends on "{dep}", which does not exist')
@@ -102,7 +102,7 @@ class ModuleRegistry:
 
     def ensure_single_module_rules(self) -> bool:
         def all_rules() -> Generator[Callable[[Module], bool], None, None]:
-            yield self.__all_dependnecies_exist
+            yield self.__all_dependencies_exist
             yield self.__has_valid_module_file_name
 
         all_ok = True
@@ -112,7 +112,7 @@ class ModuleRegistry:
 
         return all_ok
 
-    def toplogical_sort(self, targets: list[str] | None = None) -> list[str]:
+    def topological_sort(self, targets: list[str] | None = None) -> list[str]:
         """Returns list of modules names sorted topologically.
         All modules in this list come before it's dependencies
         """
