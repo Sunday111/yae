@@ -4,130 +4,19 @@ from pathlib import Path
 from typing import Iterable
 import argparse
 
-import itertools
-
-from yae import yae_module
 from yae.cmake_generator import CMakeGenerator
-from yae.cloned_repository_registry import ClonedRepositoryRegistry
-from yae.github_link import GitHubLink
-from yae.global_context import GlobalContext
-from yae.yae_module import Module
-from yae.yae_module import ModuleType
-from yae.yae_module_registry import ModuleRegistry
-from yae.yae_package import Package
-
-
-YAE_SUPPORT_PACKAGE_NAME = "yae-support"
-YAE_SUPPORT_PACKAGE_LINK = GitHubLink.parse("https://github.com/Sunday111/yae-support main")
-
-
-def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry) -> list[Package]:
-    local_packages: dict[str, Package] = dict()
-    available_packages: dict[str, tuple[Package, GitHubLink]] = dict()
-    packages_to_fetch: list[tuple[str, GitHubLink]] = list()
-    required_packages: set[str] = set()
-
-    # collect local packages and their dependencies
-    for package in ctx.project_config.packages:
-        assert package.name not in local_packages
-        local_packages[package.name] = package
-        required_packages.add(package.name)
-        for name, link in package.dependencies:
-            if name in local_packages:
-                assert link is None
-                continue
-
-            packages_to_fetch.append([name, link])
-
-    required_packages.add(YAE_SUPPORT_PACKAGE_NAME)
-    if YAE_SUPPORT_PACKAGE_NAME not in local_packages:
-        packages_to_fetch.append((YAE_SUPPORT_PACKAGE_NAME, YAE_SUPPORT_PACKAGE_LINK))
-
-    while packages_to_fetch:
-        name, link = packages_to_fetch.pop()
-        required_packages.add(name)
-
-        if name in local_packages:
-            continue
-
-        if name in available_packages:
-            existing_package, existing_link = available_packages[name]
-            if link == existing_link:
-                # Package already fetched with the same link
-                continue
-            else:
-                raise RuntimeError(
-                    f"Packages with the same address must be identical. Existing: {existing_link.url} {existing_link.tag} {existing_link.subdir}. New one: {link.url} {link.tag} {link.subdir}"
-                )
-
-        if not repo_registry.fetch_repo(link.subdir, link.url, link.tag):
-            raise RuntimeError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
-
-        repo_root = ctx.project_config.cloned_repos_dir / link.subdir
-        for package in Package.glob_in(repo_root):
-            assert package.name not in available_packages
-            available_packages[package.name] = (package, link)
-            if package.name in required_packages:
-                packages_to_fetch.extend(package.dependencies)
-
-        # Ensure this package actually exists in that repository
-        if name not in available_packages:
-            raise RuntimeError(f"Could not find package {name} at {repo_root.as_posix()} ({link.url} {link.tag})")
-
-    return list(
-        filter(
-            lambda x: x.name in required_packages,
-            itertools.chain(local_packages.values(), (package for package, link in available_packages.values())),
-        )
-    )
-
-
-def gather_modules(
-    ctx: GlobalContext, packages: list[Package], cloned_repo_registry: ClonedRepositoryRegistry
-) -> ModuleRegistry:
-    module_registry = ModuleRegistry()
-    add_module_errors: list[str] = list()
-
-    def add_modules(path: Path):
-        for module in Module.sorted_glob_in(path):
-            if not module_registry.add_one(module):
-                add_module_errors.append(
-                    f"Failed to add module {module.root_dir.as_posix()} from package {package.name}"
-                )
-            if module.module_type == ModuleType.GITCLONE:
-                if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
-                    add_module_errors.append(
-                        f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
-                    )
-
-    for package in packages:
-        add_modules(package.modules_dir)
-
-    if add_module_errors:
-        for err in add_module_errors:
-            print(err)
-        raise RuntimeError("Failed to add some modules!")
-
-    return module_registry
+from yae.module import CPP_SUFFIXES
+from yae.module import CUDA_SUFFIXES
+from yae.module import Module
+from yae.module import ModuleType
+from yae.resolver import resolve_project
 
 
 def generate_project_files(project_dir: Path, external_modules_dir: Path | None = None) -> None:
-    if not project_dir.is_absolute():
-        project_dir.absolute()
-    project_dir = project_dir.resolve()
-
-    ctx = GlobalContext(project_root=project_dir, external_modules_dir=external_modules_dir)
-    cloned_repo_registry = ClonedRepositoryRegistry(ctx)
-    packages = gather_packages(ctx, cloned_repo_registry)
-    module_registry = gather_modules(ctx, packages, cloned_repo_registry)
-
-    if not module_registry.ensure_single_module_rules():
-        return
-
-    if not module_registry.ensure_dpependency_graph_is_valid():
-        return
-
-    support_package = next(package for package in packages if package.name == YAE_SUPPORT_PACKAGE_NAME)
+    resolved_project = resolve_project(project_dir, external_modules_dir)
+    ctx = resolved_project.context
+    module_registry = resolved_project.module_registry
+    support_package = resolved_project.support_package
     support_root_var = "YAE_SUPPORT_ROOT"
     project_root_var = "YAE_PROJECT_ROOT"
 
@@ -272,8 +161,8 @@ def generate_project_files(project_dir: Path, external_modules_dir: Path | None 
 
             rel_sources = sorted(path.relative_to(module.root_dir) for path in module.source_files)
 
-            has_cpp_files = any(path.suffix in yae_module.CPP_SUFFIXES for path in rel_sources)
-            has_cuda_files = any(path.suffix in yae_module.CUDA_SUFFIXES for path in rel_sources)
+            has_cpp_files = any(path.suffix in CPP_SUFFIXES for path in rel_sources)
+            has_cuda_files = any(path.suffix in CUDA_SUFFIXES for path in rel_sources)
             is_interface_library = False
 
             if has_cuda_files:

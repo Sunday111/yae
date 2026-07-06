@@ -34,6 +34,8 @@ class ClonedRepositoryRegistry:
         print(f"    tag: {git_tag}")
 
         start_time = time.time()
+        clone_destination = self.ctx.project_config.cloned_repos_dir / path
+        clone_destination.parent.mkdir(parents=True, exist_ok=True)
         clone_cmd = [
             "git",
             "clone",
@@ -42,7 +44,7 @@ class ClonedRepositoryRegistry:
             "--branch",
             git_tag,
             git_url,
-            (self.ctx.project_config.cloned_repos_dir / path).as_posix(),
+            clone_destination.as_posix(),
         ]
         try:
             subprocess.check_call(
@@ -71,6 +73,7 @@ class ClonedRepositoryRegistry:
         return False
 
     def __save_registry_file(self):
+        self.ctx.project_config.cloned_modules_registry_file.parent.mkdir(parents=True, exist_ok=True)
         converted = {
             key.as_posix(): {
                 "GitUrl": value[0],

@@ -1,4 +1,4 @@
-from yae.yae import main
+from yae.cli import main
 
 
 if __name__ == "__main__":

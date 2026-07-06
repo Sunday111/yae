@@ -15,6 +15,8 @@ yae generate
 yae build
 yae run
 yae run some-code-sample
+yae list
+yae list --all --executables
 yae format
 yae cleanup
 ```
@@ -43,6 +45,9 @@ YAE injects `https://github.com/Sunday111/yae-support` as an implicit package de
 CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
 depend on the location of the YAE CLI checkout.
 
+`yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
+support packages and fetched external packages.
+
 Machine-specific overrides can be stored next to `yae_project.json` in `local-config.json`. This file is merged into
 `default_configuration`, so either of these forms is valid:
 
@@ -53,6 +58,15 @@ Machine-specific overrides can be stored next to `yae_project.json` in `local-co
     }
 }
 ```
+
+## Self Test
+
+```bash
+uv run --project /path/to/yae python /path/to/yae/tests/run_self_test.py
+```
+
+The self-test copies a minimal fixture project to a temporary directory, configures it, builds it, and checks that a
+content directory from a library dependency is copied next to the executable.
 
 ```json
 {

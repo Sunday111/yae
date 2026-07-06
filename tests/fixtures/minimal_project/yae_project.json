@@ -1,0 +1,17 @@
+{
+    "name": "YaeSelfTest",
+    "default_configuration": {
+        "build_dir": "build",
+        "generator": "Ninja",
+        "build_targets": [
+            "self_test_app"
+        ],
+        "run_target": "self_test_app",
+        "cmake_definitions": {
+            "CMAKE_BUILD_TYPE": "Release"
+        }
+    },
+    "cpp": {
+        "standard": "20"
+    }
+}

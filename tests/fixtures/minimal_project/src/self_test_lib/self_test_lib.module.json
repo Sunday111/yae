@@ -1,0 +1,10 @@
+{
+    "ModuleType": "Library",
+    "CopyDirectoriesAfterBuild": [
+        "content"
+    ],
+    "Dependencies": {
+        "Public": [],
+        "Private": []
+    }
+}

@@ -3,8 +3,8 @@ import collections
 from typing import Iterable, Generator, Callable
 
 from yae import yae_constants
-from yae.yae_module import Module
-from yae.yae_module import ModuleType
+from yae.module import Module
+from yae.module import ModuleType
 
 
 class ModuleRegistry:

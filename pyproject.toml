@@ -7,7 +7,7 @@ dependencies = [
 ]
 
 [project.scripts]
-yae = "yae.yae:main"
+yae = "yae.cli:main"
 
 [build-system]
 requires = ["hatchling"]

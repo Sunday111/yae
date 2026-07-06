@@ -1,0 +1,9 @@
+{
+    "ModuleType": "Executable",
+    "Dependencies": {
+        "Public": [],
+        "Private": [
+            "self_test_lib"
+        ]
+    }
+}

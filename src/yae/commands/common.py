@@ -9,7 +9,7 @@ import os
 import shutil
 import subprocess
 
-from yae.make_project_files import generate_project_files
+from yae.cmake_project import generate_project_files
 from yae.yae_logging import get_logger
 
 

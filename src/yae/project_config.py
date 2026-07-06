@@ -3,7 +3,7 @@ from typing import Generator
 
 from yae import json_utils
 from yae import yae_constants
-from yae.yae_package import Package
+from yae.package import Package
 
 
 class ProjectConfig:
