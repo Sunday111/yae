@@ -3,12 +3,12 @@ from __future__ import annotations
 import argparse
 import subprocess
 
-from commands.base import Command
-from commands.base import CommandContext
-from commands.base import add_project_dir_argument
-from commands.common import get_project_dir
-from commands.common import run_subprocess
-from yae_logging import get_logger
+from yae.commands.base import Command
+from yae.commands.base import CommandContext
+from yae.commands.base import add_project_dir_argument
+from yae.commands.common import get_project_dir
+from yae.commands.common import run_subprocess
+from yae.yae_logging import get_logger
 
 
 logger = get_logger(__name__)

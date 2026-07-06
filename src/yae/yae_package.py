@@ -1,8 +1,9 @@
 from pathlib import Path
-import json_utils
-from github_link import GitHubLink
 from typing import Generator
-import yae_constants
+
+from yae import json_utils
+from yae import yae_constants
+from yae.github_link import GitHubLink
 
 
 class Package:

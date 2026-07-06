@@ -1,8 +1,9 @@
-import json_utils
 from pathlib import Path
-from yae_package import Package
 from typing import Generator
-import yae_constants
+
+from yae import json_utils
+from yae import yae_constants
+from yae.yae_package import Package
 
 
 class ProjectConfig:

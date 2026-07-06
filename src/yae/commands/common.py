@@ -6,12 +6,11 @@ from collections.abc import Sequence
 import argparse
 import json
 import os
-import runpy
 import shutil
 import subprocess
-import sys
 
-from yae_logging import get_logger
+from yae.make_project_files import generate_project_files
+from yae.yae_logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -51,22 +50,9 @@ def get_build_dir_override(args: argparse.Namespace) -> Path | None:
     return build_dir.resolve() if build_dir else None
 
 
-def run_project_file_generation(yae_root: Path, project_dir: Path, external_modules_dir: Path | None) -> None:
+def run_project_file_generation(project_dir: Path, external_modules_dir: Path | None) -> None:
     logger.info("Generating CMake files for %s", project_dir)
-    script_path = yae_root / "scripts" / "make_project_files.py"
-    script_args = [str(script_path), f"--project_dir={project_dir}"]
-    if external_modules_dir is not None:
-        script_args.append(f"--external_modules_dir={external_modules_dir}")
-
-    old_argv = sys.argv
-    old_path = list(sys.path)
-    try:
-        sys.path.insert(0, str(script_path.parent))
-        sys.argv = script_args
-        runpy.run_path(str(script_path), run_name="__main__")
-    finally:
-        sys.argv = old_argv
-        sys.path = old_path
+    generate_project_files(project_dir=project_dir, external_modules_dir=external_modules_dir)
 
 
 def read_project_config(project_dir: Path) -> dict:

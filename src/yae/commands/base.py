@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 import argparse
 
 
-@dataclass(frozen=True)
 class CommandContext:
-    yae_root: Path
+    pass
 
 
 class Command:

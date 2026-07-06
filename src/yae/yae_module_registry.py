@@ -2,9 +2,9 @@ from pathlib import Path
 import collections
 from typing import Iterable, Generator, Callable
 
-from yae_module import Module
-from yae_module import ModuleType
-import yae_constants
+from yae import yae_constants
+from yae.yae_module import Module
+from yae.yae_module import ModuleType
 
 
 class ModuleRegistry:

@@ -3,6 +3,8 @@
 Use the `yae` entrypoint from this repository. It runs through `uv`, which creates a local virtual environment in
 `.venv` and stores dependency cache data in `.cache/uv`.
 
+The Python implementation lives under `src/yae`; the root `yae` launcher runs the package entrypoint through `uv`.
+
 ## Commands
 
 From a project root:

@@ -4,16 +4,17 @@ from pathlib import Path
 from typing import Iterable
 import argparse
 
-from cmake_generator import CMakeGenerator
-from cloned_repository_registry import ClonedRepositoryRegistry
-from global_context import GlobalContext
-import yae_module
-from yae_module import Module
-from yae_module import ModuleType
-from yae_module_registry import ModuleRegistry
-from yae_package import Package
-from github_link import GitHubLink
 import itertools
+
+from yae import yae_module
+from yae.cmake_generator import CMakeGenerator
+from yae.cloned_repository_registry import ClonedRepositoryRegistry
+from yae.github_link import GitHubLink
+from yae.global_context import GlobalContext
+from yae.yae_module import Module
+from yae.yae_module import ModuleType
+from yae.yae_module_registry import ModuleRegistry
+from yae.yae_package import Package
 
 
 YAE_SUPPORT_PACKAGE_NAME = "yae-support"
@@ -110,20 +111,12 @@ def gather_modules(
     return module_registry
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
-    parser.add_argument(
-        "--external_modules_dir", type=Path, required=False, help="Path to directory where external repositories live"
-    )
-    cli_parameters = parser.parse_args()
-
-    project_dir: Path = cli_parameters.project_dir
+def generate_project_files(project_dir: Path, external_modules_dir: Path | None = None) -> None:
     if not project_dir.is_absolute():
         project_dir.absolute()
     project_dir = project_dir.resolve()
 
-    ctx = GlobalContext(project_root=project_dir, external_modules_dir=cli_parameters.external_modules_dir)
+    ctx = GlobalContext(project_root=project_dir, external_modules_dir=external_modules_dir)
     cloned_repo_registry = ClonedRepositoryRegistry(ctx)
     packages = gather_packages(ctx, cloned_repo_registry)
     module_registry = gather_modules(ctx, packages, cloned_repo_registry)
@@ -343,6 +336,19 @@ def main():
                 gen.line(f"gtest_discover_tests({module.name})")
 
             copy_after_build(gen, module)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project_dir", type=Path, required=True, help="Path to directory with your project")
+    parser.add_argument(
+        "--external_modules_dir", type=Path, required=False, help="Path to directory where external repositories live"
+    )
+    cli_parameters = parser.parse_args()
+    generate_project_files(
+        project_dir=cli_parameters.project_dir,
+        external_modules_dir=cli_parameters.external_modules_dir,
+    )
 
 
 if __name__ == "__main__":

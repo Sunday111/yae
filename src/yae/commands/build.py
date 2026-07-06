@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import argparse
 
-from commands.base import Command
-from commands.base import CommandContext
-from commands.base import add_build_dir_argument
-from commands.base import add_external_modules_dir_argument
-from commands.base import add_project_dir_argument
-from commands.common import get_build_dir
-from commands.common import get_build_dir_override
-from commands.common import get_default_configuration
-from commands.common import get_project_dir
-from commands.common import run_subprocess
-from yae_logging import get_logger
+from yae.commands.base import Command
+from yae.commands.base import CommandContext
+from yae.commands.base import add_build_dir_argument
+from yae.commands.base import add_external_modules_dir_argument
+from yae.commands.base import add_project_dir_argument
+from yae.commands.common import get_build_dir
+from yae.commands.common import get_build_dir_override
+from yae.commands.common import get_default_configuration
+from yae.commands.common import get_project_dir
+from yae.commands.common import run_subprocess
+from yae.yae_logging import get_logger
 
 
 logger = get_logger(__name__)

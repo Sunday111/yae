@@ -2,8 +2,8 @@ from typing import Iterable, Generator
 import enum
 from pathlib import Path
 
-import json_utils
-import yae_constants
+from yae import json_utils
+from yae import yae_constants
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]

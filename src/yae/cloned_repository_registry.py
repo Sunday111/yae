@@ -1,8 +1,8 @@
 import subprocess
 from pathlib import Path
 
-import json_utils
-from global_context import GlobalContext
+from yae import json_utils
+from yae.global_context import GlobalContext
 import time
 
 

@@ -1,11 +1,12 @@
-import project_config
 from pathlib import Path
 import argparse
-import json_utils
 import subprocess
 
+from yae import json_utils
+from yae import project_config
+
 SCRIPT_DIR = Path(__file__).parent.resolve()
-YAE_ROOT = SCRIPT_DIR.parent
+YAE_ROOT = SCRIPT_DIR.parents[1]
 
 
 def main():
