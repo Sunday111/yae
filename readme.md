@@ -46,6 +46,16 @@ YAE injects `https://github.com/Sunday111/yae-support` as an implicit package de
 CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
 depend on the location of the YAE CLI checkout.
 
+Projects can pin the support package ref in `yae_project.json`:
+
+```json
+{
+    "yae_support": {
+        "link": "https://github.com/Sunday111/yae-support v0.1.0"
+    }
+}
+```
+
 `yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
 support packages and fetched external packages. Use `--plain` when another script needs stable row-oriented output.
 

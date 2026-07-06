@@ -1,5 +1,8 @@
 {
     "name": "YaeSelfTest",
+    "yae_support": {
+        "link": "https://github.com/Sunday111/yae-support main"
+    },
     "default_configuration": {
         "build_dir": "build",
         "generator": "Ninja",

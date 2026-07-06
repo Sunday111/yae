@@ -15,7 +15,6 @@ from yae.package import Package
 
 
 YAE_SUPPORT_PACKAGE_NAME = "yae-support"
-YAE_SUPPORT_PACKAGE_LINK = GitHubLink.parse("https://github.com/Sunday111/yae-support main")
 
 
 class ModuleOrigin(Enum):
@@ -54,7 +53,7 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
 
     required_packages.add(YAE_SUPPORT_PACKAGE_NAME)
     if YAE_SUPPORT_PACKAGE_NAME not in local_packages:
-        packages_to_fetch.append((YAE_SUPPORT_PACKAGE_NAME, YAE_SUPPORT_PACKAGE_LINK))
+        packages_to_fetch.append((YAE_SUPPORT_PACKAGE_NAME, ctx.project_config.yae_support_link))
 
     while packages_to_fetch:
         name, link = packages_to_fetch.pop()

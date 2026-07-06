@@ -3,7 +3,11 @@ from typing import Generator
 
 from yae import json_utils
 from yae import yae_constants
+from yae.github_link import GitHubLink
 from yae.package import Package
+
+
+DEFAULT_YAE_SUPPORT_LINK = "https://github.com/Sunday111/yae-support main"
 
 
 class ProjectConfig:
@@ -14,9 +18,16 @@ class ProjectConfig:
         self.name = json["name"]
         self.cpp_standard = json["cpp"]["standard"]
         self.enable_lto_globally: bool | None = json.get("enable_lto_globally", None)
+        self.yae_support_link = self.__read_yae_support_link(json)
         self.cloned_repos_dir: Path = self.__choose_cloned_repo_dir(cloned_repositories_dir)
         self.cloned_modules_registry_file: Path = self.cloned_repos_dir / "registry.json"
         self.__packages = list(self.__glob_local_packages())
+
+    def __read_yae_support_link(self, json: dict) -> GitHubLink:
+        yae_support = json.get("yae_support", {})
+        if isinstance(yae_support, str):
+            return GitHubLink.parse(yae_support)
+        return GitHubLink.parse(yae_support.get("link", DEFAULT_YAE_SUPPORT_LINK))
 
     def __glob_local_packages(self) -> Generator[Package, None, None]:
         for path in Package.glob_files_in(self.root_dir):
