@@ -23,7 +23,10 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
 
     gen.line()
     gen.line("# Set path to external modules sources")
-    gen.line(f"set({path_resolver.external_modules_var_name} {path_resolver.emit_external_modules_dir()})")
+    gen.line(
+        f'set({path_resolver.external_modules_var_name} "{path_resolver.emit_external_modules_dir()}" '
+        'CACHE PATH "Path to YAE external repository checkouts")'
+    )
 
     gen.line()
     gen.line(

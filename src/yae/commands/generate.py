@@ -21,4 +21,8 @@ class GenerateCommand(Command):
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
         external_modules_dir_arg = getattr(args, "external_modules_dir", None)
         external_modules_dir = external_modules_dir_arg.resolve() if external_modules_dir_arg else None
-        run_project_file_generation(get_project_dir(args), external_modules_dir)
+        run_project_file_generation(
+            get_project_dir(args),
+            external_modules_dir,
+            show_clone_progress=args.clone_progress,
+        )

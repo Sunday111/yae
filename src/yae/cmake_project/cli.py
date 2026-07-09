@@ -15,8 +15,10 @@ def main() -> None:
         required=False,
         help="Path to directory where external repositories live",
     )
+    parser.add_argument("--clone-progress", action="store_true", help="Show git clone progress while fetching repositories")
     cli_parameters = parser.parse_args()
     generate_project_files(
         project_dir=cli_parameters.project_dir,
         external_modules_dir=cli_parameters.external_modules_dir,
+        show_clone_progress=cli_parameters.clone_progress,
     )

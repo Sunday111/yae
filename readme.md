@@ -5,6 +5,16 @@ Use the `yae` entrypoint from this repository. It runs through `uv`, which creat
 
 The Python implementation lives under `src/yae`; the root `yae` launcher runs the package entrypoint through `uv`.
 
+## Project Model
+
+A YAE project is a directory with `yae_project.json` and one or more `*.package.json` files. Package files name a
+module directory and external package dependencies. Module files are `*.module.json` files under the package module
+directory; they describe libraries, executables, or git-cloned CMake dependencies.
+
+Generated `CMakeLists.txt` files are committed project files. They must remain usable on another machine without the
+YAE Python tool being present. YAE is responsible for generating and fetching, but CMake is responsible for configuring
+and building after generation.
+
 ## Commands
 
 From a project root:
@@ -42,9 +52,67 @@ depends on `build`. Project-specific defaults can be stored in `yae_project.json
 including `build_targets` and `run_target`. `run` uses `run_target` by default; pass a positional target name to
 override it.
 
+`yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
+support packages and fetched external packages. Use `--plain` when another script needs stable row-oriented output.
+
+Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
+output quiet; with this flag it passes `--progress` to git and streams clone progress.
+
+## Generated CMake
+
 YAE injects `https://github.com/Sunday111/yae-support` as an implicit package dependency. That package provides the
 CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
 depend on the location of the YAE CLI checkout.
+
+Generated CMake exposes external repository checkouts as a configurable cache variable:
+
+```cmake
+set(YAE_EXTERNAL_MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories" CACHE PATH "Path to YAE external repository checkouts")
+```
+
+The default is `cloned_repositories` next to `yae_project.json`. This makes generated CMake self-contained for the
+default layout. To build against shared checkouts without invoking YAE, pass the cache variable directly:
+
+```bash
+cmake -S . -B build -DYAE_EXTERNAL_MODULES_DIR=/path/to/shared/repositories
+```
+
+`yae configure` also passes this cache variable to CMake using the repository root selected by YAE, so command-line,
+local-config, and environment overrides affect configure without changing the committed generated default.
+
+## Repository Checkouts
+
+YAE resolves the repository root in this order:
+
+1. `--external_modules_dir`
+2. `local-config.json`
+3. `YAE_EXTERNAL_MODULES_DIR`
+4. `${project}/cloned_repositories`
+
+`local-config.json` may set either `external_modules_dir` or `cloned_repositories_dir`, at the top level or inside
+`default_configuration`:
+
+```json
+{
+    "external_modules_dir": "/path/to/shared/repositories"
+}
+```
+
+```json
+{
+    "default_configuration": {
+        "cloned_repositories_dir": "/path/to/shared/repositories"
+    }
+}
+```
+
+Repository paths are derived from GitHub links. For example, `https://github.com/Sunday111/klgl main` maps to
+`Sunday111/klgl` under the selected repository root.
+
+YAE records fetched repositories in `registry.json` under the selected repository root. Existing shared checkouts are
+accepted and registered when their `origin` URL matches and the requested branch/tag is checked out, points at `HEAD`,
+or is an ancestor of `HEAD`. This allows a shared working branch to satisfy a pinned base branch without forcing YAE to
+switch the checkout.
 
 Projects can pin the support package ref in `yae_project.json`:
 
@@ -56,11 +124,8 @@ Projects can pin the support package ref in `yae_project.json`:
 }
 ```
 
-`yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
-support packages and fetched external packages. Use `--plain` when another script needs stable row-oriented output.
-
-Machine-specific overrides can be stored next to `yae_project.json` in `local-config.json`. This file is merged into
-`default_configuration`, so either of these forms is valid:
+Machine-specific configure/build overrides can also be stored next to `yae_project.json` in `local-config.json`. This
+file is merged into `default_configuration`:
 
 ```json
 {
@@ -77,14 +142,5 @@ yae self-test
 ```
 
 The self-test copies a minimal fixture project to a temporary directory, configures it, builds it, and checks that a
-content directory from a library dependency is copied next to the executable.
-
-```json
-{
-    "default_configuration": {
-        "cmake_definitions": {
-            "CMAKE_C_COMPILER": "/custom/clang"
-        }
-    }
-}
-```
+content directory from a library dependency is copied next to the executable. It also checks repository-root precedence
+and the generated CMake default for `YAE_EXTERNAL_MODULES_DIR`.

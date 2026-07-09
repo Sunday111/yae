@@ -37,7 +37,11 @@ class ListCommand(Command):
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
         project_dir = get_project_dir(args)
         external_modules_dir = args.external_modules_dir.resolve() if args.external_modules_dir else None
-        resolved_project = resolve_project(project_dir=project_dir, external_modules_dir=external_modules_dir)
+        resolved_project = resolve_project(
+            project_dir=project_dir,
+            external_modules_dir=external_modules_dir,
+            show_clone_progress=args.clone_progress,
+        )
         module_registry = resolved_project.module_registry
 
         modules = [module_registry.find(name) for name in module_registry.topological_sort()]

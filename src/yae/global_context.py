@@ -6,8 +6,9 @@ from yae.project_config import ProjectConfig
 class GlobalContext:
     """Global state of the script"""
 
-    def __init__(self, project_root: Path, external_modules_dir: Path | None):
+    def __init__(self, project_root: Path, external_modules_dir: Path | None, show_clone_progress: bool = False):
         self.__project_config = ProjectConfig(project_root, external_modules_dir)
+        self.__show_clone_progress = show_clone_progress
 
     @property
     def root_dir(self) -> Path:
@@ -21,3 +22,7 @@ class GlobalContext:
     def project_root_dir(self) -> Path:
         """Returns root directory of the project that uses yae"""
         return self.__project_config.root_dir
+
+    @property
+    def show_clone_progress(self) -> bool:
+        return self.__show_clone_progress

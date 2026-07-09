@@ -125,19 +125,33 @@ def gather_modules(
 def get_package_origin(ctx: GlobalContext, package: Package) -> ModuleOrigin:
     if package.name == YAE_SUPPORT_PACKAGE_NAME:
         return ModuleOrigin.SUPPORT
-    if package.root_dir.is_relative_to(ctx.root_dir) and not package.root_dir.is_relative_to(
-        ctx.project_config.cloned_repos_dir
+    is_nested_external_package = (
+        ctx.project_config.cloned_repos_dir.is_relative_to(ctx.root_dir)
+        and package.root_dir.is_relative_to(ctx.project_config.cloned_repos_dir)
+    )
+    if (
+        package.root_dir.is_relative_to(ctx.root_dir)
+        and not package.root_dir.is_relative_to(ctx.project_config.default_cloned_repositories_dir)
+        and not is_nested_external_package
     ):
         return ModuleOrigin.PROJECT
     return ModuleOrigin.EXTERNAL
 
 
-def resolve_project(project_dir: Path, external_modules_dir: Path | None = None) -> ResolvedProject:
+def resolve_project(
+    project_dir: Path,
+    external_modules_dir: Path | None = None,
+    show_clone_progress: bool = False,
+) -> ResolvedProject:
     if not project_dir.is_absolute():
         project_dir = project_dir.absolute()
     project_dir = project_dir.resolve()
 
-    ctx = GlobalContext(project_root=project_dir, external_modules_dir=external_modules_dir)
+    ctx = GlobalContext(
+        project_root=project_dir,
+        external_modules_dir=external_modules_dir,
+        show_clone_progress=show_clone_progress,
+    )
     repo_registry = ClonedRepositoryRegistry(ctx)
     packages = gather_packages(ctx, repo_registry)
     module_registry, module_origins = gather_modules(ctx, packages, repo_registry)

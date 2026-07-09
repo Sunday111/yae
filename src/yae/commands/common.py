@@ -4,12 +4,13 @@ from pathlib import Path
 from collections.abc import Mapping
 from collections.abc import Sequence
 import argparse
-import json
 import os
 import shutil
 import subprocess
 
 from yae.cmake_project import generate_project_files
+from yae.local_config import get_default_configuration
+from yae.project_config import ProjectConfig
 from yae.yae_logging import get_logger
 
 
@@ -50,24 +51,17 @@ def get_build_dir_override(args: argparse.Namespace) -> Path | None:
     return build_dir.resolve() if build_dir else None
 
 
-def run_project_file_generation(project_dir: Path, external_modules_dir: Path | None) -> None:
+def run_project_file_generation(
+    project_dir: Path,
+    external_modules_dir: Path | None,
+    show_clone_progress: bool = False,
+) -> None:
     logger.info("Generating CMake files for %s", project_dir)
-    generate_project_files(project_dir=project_dir, external_modules_dir=external_modules_dir)
-
-
-def read_project_config(project_dir: Path) -> dict:
-    with open(project_dir / "yae_project.json", mode="r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def merge_config(base: dict, override: dict) -> dict:
-    result = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = merge_config(result[key], value)
-        else:
-            result[key] = value
-    return result
+    generate_project_files(
+        project_dir=project_dir,
+        external_modules_dir=external_modules_dir,
+        show_clone_progress=show_clone_progress,
+    )
 
 
 def resolve_project_path(project_dir: Path, value: str) -> Path:
@@ -83,22 +77,6 @@ def resolve_config_value(project_dir: Path, value: object) -> str:
     return value.replace("${project_dir}", project_dir.as_posix())
 
 
-def get_default_configuration(project_dir: Path) -> dict:
-    project_config = read_project_config(project_dir)
-    default_configuration = project_config.get("default_configuration", {})
-
-    local_config_path = project_dir / "local-config.json"
-    if not local_config_path.exists():
-        return default_configuration
-
-    logger.info("Applying local configuration from %s", local_config_path)
-    with open(local_config_path, mode="r", encoding="utf-8") as file:
-        local_config = json.load(file)
-
-    local_default_configuration = local_config.get("default_configuration", local_config)
-    return merge_config(default_configuration, local_default_configuration)
-
-
 def should_resolve_environment_path(name: str, value: str) -> bool:
     return name.endswith("_DIR") and not shutil.which(value)
 
@@ -112,6 +90,7 @@ def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
 
 def run_cmake_configure(
     project_dir: Path,
+    external_modules_dir: Path | None,
     build_dir_override: Path | None,
     extra_cmake_args: list[str],
 ) -> None:
@@ -133,6 +112,8 @@ def run_cmake_configure(
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
+    cloned_repos_dir = ProjectConfig(project_dir, external_modules_dir).cloned_repos_dir
+    command.append(f"-DYAE_EXTERNAL_MODULES_DIR={cloned_repos_dir.as_posix()}")
     command.extend(extra_cmake_args)
 
     run_subprocess(command, env=environment)

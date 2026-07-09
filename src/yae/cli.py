@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 def create_parser(commands: list[Command]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yae")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose yae diagnostics")
+    parser.add_argument("--clone-progress", action="store_true", help="Show git clone progress while fetching repositories")
     subparsers = parser.add_subparsers(dest="command")
 
     for command in commands:

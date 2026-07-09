@@ -30,6 +30,7 @@ class ConfigureCommand(Command):
 
         run_cmake_configure(
             get_project_dir(args),
+            args.external_modules_dir.resolve() if args.external_modules_dir else None,
             get_build_dir_override(args),
             cmake_args,
         )
