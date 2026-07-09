@@ -10,7 +10,7 @@ import subprocess
 
 from yae.cmake_project import generate_project_files
 from yae.local_config import get_default_configuration
-from yae.project_config import ProjectConfig
+from yae.settings import ResolvedSettings
 from yae.yae_logging import get_logger
 
 
@@ -53,13 +53,13 @@ def get_build_dir_override(args: argparse.Namespace) -> Path | None:
 
 def run_project_file_generation(
     project_dir: Path,
-    external_modules_dir: Path | None,
+    cloned_repositories_dir: Path | None,
     show_clone_progress: bool = False,
 ) -> None:
     logger.info("Generating CMake files for %s", project_dir)
     generate_project_files(
         project_dir=project_dir,
-        external_modules_dir=external_modules_dir,
+        cloned_repositories_dir=cloned_repositories_dir,
         show_clone_progress=show_clone_progress,
     )
 
@@ -90,7 +90,7 @@ def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
 
 def run_cmake_configure(
     project_dir: Path,
-    external_modules_dir: Path | None,
+    cloned_repositories_dir: Path | None,
     build_dir_override: Path | None,
     extra_cmake_args: list[str],
 ) -> None:
@@ -112,8 +112,8 @@ def run_cmake_configure(
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
-    cloned_repos_dir = ProjectConfig(project_dir, external_modules_dir).cloned_repos_dir
-    command.append(f"-DYAE_EXTERNAL_MODULES_DIR={cloned_repos_dir.as_posix()}")
+    settings = ResolvedSettings.from_project(project_dir, cloned_repositories_dir)
+    command.append(f"-DYAE_CLONED_REPOSITORIES_DIR={settings.cloned_repositories_dir.as_posix()}")
     command.extend(extra_cmake_args)
 
     run_subprocess(command, env=environment)

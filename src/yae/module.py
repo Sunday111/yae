@@ -57,9 +57,9 @@ class Module:
         key_dependencies = "Dependencies"
         key_public = "Public"
         key_private = "Private"
-        dependedncies: dict = file_data.get(key_dependencies, {})
-        self.__private_modules = dependedncies.get(key_private, dict())
-        self.__public_modules = dependedncies.get(key_public, dict())
+        dependencies: dict = file_data.get(key_dependencies, {})
+        self.__private_modules = dependencies.get(key_private, dict())
+        self.__public_modules = dependencies.get(key_public, dict())
 
     def __read_module_type(self, file_data: dict):
         key_module_type = "ModuleType"
@@ -108,8 +108,8 @@ class Module:
         return self.__private_modules
 
     @property
-    def all_depepndencies(self) -> Generator[str, None, None]:
-        """Yields all dependencis for this module"""
+    def all_dependencies(self) -> Generator[str, None, None]:
+        """Yields all dependencies for this module"""
         yield from self.public_dependencies
         yield from self.private_dependencies
 
@@ -135,7 +135,7 @@ class Module:
             yield from self.root_dir.rglob(f"*{suffix}")
 
     @property
-    def should_add_sbudirectory(self) -> bool:
+    def should_add_subdirectory(self) -> bool:
         return self.__cmake_add_subdirectory
 
     @property

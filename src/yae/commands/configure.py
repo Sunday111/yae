@@ -5,7 +5,7 @@ import argparse
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_build_dir_argument
-from yae.commands.base import add_external_modules_dir_argument
+from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import get_build_dir_override
 from yae.commands.common import get_project_dir
@@ -19,7 +19,7 @@ class ConfigureCommand(Command):
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         add_project_dir_argument(parser)
-        add_external_modules_dir_argument(parser)
+        add_cloned_repositories_dir_argument(parser)
         add_build_dir_argument(parser)
         parser.add_argument("cmake_args", nargs=argparse.REMAINDER, help="Additional arguments passed to cmake")
 
@@ -30,7 +30,7 @@ class ConfigureCommand(Command):
 
         run_cmake_configure(
             get_project_dir(args),
-            args.external_modules_dir.resolve() if args.external_modules_dir else None,
+            args.cloned_repositories_dir.resolve() if args.cloned_repositories_dir else None,
             get_build_dir_override(args),
             cmake_args,
         )

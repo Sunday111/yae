@@ -29,10 +29,10 @@ def add_build_dir_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--build_dir", type=Path, required=False, help="Override build directory")
 
 
-def add_external_modules_dir_argument(parser: argparse.ArgumentParser) -> None:
+def add_cloned_repositories_dir_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--external_modules_dir",
+        "--cloned_repositories_dir",
         type=Path,
         required=False,
-        help="Path to directory where external repositories live",
+        help="Path to directory where cloned repositories live",
     )

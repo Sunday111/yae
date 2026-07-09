@@ -73,7 +73,7 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
         if not repo_registry.fetch_repo(link.subdir, link.url, link.tag):
             raise RuntimeError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
 
-        repo_root = ctx.project_config.cloned_repos_dir / link.subdir
+        repo_root = ctx.project_config.cloned_repositories_dir / link.subdir
         for package in Package.glob_in(repo_root):
             assert package.name not in available_packages
             available_packages[package.name] = (package, link)
@@ -126,8 +126,8 @@ def get_package_origin(ctx: GlobalContext, package: Package) -> ModuleOrigin:
     if package.name == YAE_SUPPORT_PACKAGE_NAME:
         return ModuleOrigin.SUPPORT
     is_nested_external_package = (
-        ctx.project_config.cloned_repos_dir.is_relative_to(ctx.root_dir)
-        and package.root_dir.is_relative_to(ctx.project_config.cloned_repos_dir)
+        ctx.project_config.cloned_repositories_dir.is_relative_to(ctx.root_dir)
+        and package.root_dir.is_relative_to(ctx.project_config.cloned_repositories_dir)
     )
     if (
         package.root_dir.is_relative_to(ctx.root_dir)
@@ -140,7 +140,7 @@ def get_package_origin(ctx: GlobalContext, package: Package) -> ModuleOrigin:
 
 def resolve_project(
     project_dir: Path,
-    external_modules_dir: Path | None = None,
+    cloned_repositories_dir: Path | None = None,
     show_clone_progress: bool = False,
 ) -> ResolvedProject:
     if not project_dir.is_absolute():
@@ -149,7 +149,7 @@ def resolve_project(
 
     ctx = GlobalContext(
         project_root=project_dir,
-        external_modules_dir=external_modules_dir,
+        cloned_repositories_dir=cloned_repositories_dir,
         show_clone_progress=show_clone_progress,
     )
     repo_registry = ClonedRepositoryRegistry(ctx)

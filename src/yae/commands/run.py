@@ -8,7 +8,7 @@ import shutil
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_build_dir_argument
-from yae.commands.base import add_external_modules_dir_argument
+from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import get_build_dir
 from yae.commands.common import get_build_dir_override
@@ -27,7 +27,7 @@ class RunCommand(Command):
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         add_project_dir_argument(parser)
-        add_external_modules_dir_argument(parser)
+        add_cloned_repositories_dir_argument(parser)
         add_build_dir_argument(parser)
         parser.add_argument("run_target", nargs="?", help="Executable target to run instead of default run target")
         parser.add_argument("app_args", nargs=argparse.REMAINDER, help="Arguments passed to the executable")

@@ -3,6 +3,7 @@ from __future__ import annotations
 from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.paths import CMakePathResolver
 from yae.module import ModuleType
+from yae.resolver import ModuleOrigin
 from yae.resolver import ResolvedProject
 
 
@@ -22,10 +23,10 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
     _emit_output_directories(gen)
 
     gen.line()
-    gen.line("# Set path to external modules sources")
+    gen.line("# Set path to cloned repositories sources")
     gen.line(
-        f'set({path_resolver.external_modules_var_name} "{path_resolver.emit_external_modules_dir()}" '
-        'CACHE PATH "Path to YAE external repository checkouts")'
+        f'set({path_resolver.cloned_repositories_var_name} "{path_resolver.emit_default_cloned_repositories_dir()}" '
+        'CACHE PATH "Path to YAE cloned repository checkouts")'
     )
 
     gen.line()
@@ -52,7 +53,8 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         if module is None:
             continue
 
-        module_source_path = path_resolver.module_source_path(module)
+        prefer_project_root = resolved_project.module_origins[module.name] == ModuleOrigin.PROJECT
+        module_source_path = path_resolver.module_source_path(module, prefer_project_root=prefer_project_root)
         if module_source_path.cmake_path in added_subdirs:
             continue
 
@@ -61,7 +63,7 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
             gen.line(f"# {module.git_url} {module.git_tag}")
         gen.line(f"set({variable_with_path_to_module} {module_source_path.cmake_path})")
 
-        if module.should_add_sbudirectory:
+        if module.should_add_subdirectory:
             for variable_name, variable_value in module.cmake_options.items():
                 if not gen.option(variable_name, variable_value):
                     return
@@ -77,7 +79,8 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
             added_subdirs.add(module_source_path.cmake_path)
 
         for extra_cmake in module.extra_cmake_files:
-            gen.include(f"{path_resolver.source_path(module.root_dir)}/{extra_cmake}.cmake")
+            module_root = path_resolver.source_path(module.root_dir, prefer_project_root=prefer_project_root)
+            gen.include(f"{module_root}/{extra_cmake}.cmake")
 
     gen.line()
     gen.line("enable_testing()")

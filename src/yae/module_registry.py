@@ -18,7 +18,7 @@ class ModuleRegistry:
         if module.name in self.__lookup:
             first = self.__lookup[module.name]
             print(f"Found duplicate of {module.name} module name:")
-            print(f"   {first.module_file_path.as_posix()} <- first occurence")
+            print(f"   {first.module_file_path.as_posix()} <- first occurrence")
             print(f"   {module.module_file_path.as_posix()} <- duplicate")
             return False
 
@@ -35,7 +35,7 @@ class ModuleRegistry:
         return all_added
 
     def ensure_dependency_graph_is_valid(self) -> bool:
-        """Ensures dependncy graph can be built without cycles"""
+        """Ensures dependency graph can be built without cycles"""
 
         if len(self.__lookup) == 0:
             print("Empty set of modules")
@@ -50,13 +50,13 @@ class ModuleRegistry:
             visited[node] = True
             stack.append(node)
             stack_set.add(node)
-            for dependnency in self.__lookup[node].all_depepndencies:
-                if not visited[dependnency]:
-                    if dfs(dependnency):
+            for dependency in self.__lookup[node].all_dependencies:
+                if not visited[dependency]:
+                    if dfs(dependency):
                         return True
-                elif dependnency in stack_set:
+                elif dependency in stack_set:
                     print("There is a cycle in dependency graph. Walk list: ")
-                    stack.append(dependnency)
+                    stack.append(dependency)
                     for val in stack:
                         print(f"   {val}")
                     stack.pop()
@@ -81,7 +81,7 @@ class ModuleRegistry:
         return all_ok
 
     def __all_dependencies_exist(self, module: Module) -> bool:
-        for dep in module.all_depepndencies:
+        for dep in module.all_dependencies:
             if dep not in self.__lookup:
                 print(f'"{module.name}" depends on "{dep}", which does not exist')
                 return False
@@ -123,7 +123,7 @@ class ModuleRegistry:
         def dfs(node: str):
             visited.add(node)
 
-            for neighbor in self.__lookup[node].all_depepndencies:
+            for neighbor in self.__lookup[node].all_dependencies:
                 if neighbor not in visited:
                     dfs(neighbor)
 

@@ -1,13 +1,15 @@
 from pathlib import Path
 
 from yae.project_config import ProjectConfig
+from yae.settings import ResolvedSettings
 
 
 class GlobalContext:
     """Global state of the script"""
 
-    def __init__(self, project_root: Path, external_modules_dir: Path | None, show_clone_progress: bool = False):
-        self.__project_config = ProjectConfig(project_root, external_modules_dir)
+    def __init__(self, project_root: Path, cloned_repositories_dir: Path | None, show_clone_progress: bool = False):
+        self.__settings = ResolvedSettings.from_project(project_root, cloned_repositories_dir)
+        self.__project_config = ProjectConfig(self.__settings.project_root, self.__settings)
         self.__show_clone_progress = show_clone_progress
 
     @property
@@ -17,6 +19,10 @@ class GlobalContext:
     @property
     def project_config(self) -> ProjectConfig:
         return self.__project_config
+
+    @property
+    def settings(self) -> ResolvedSettings:
+        return self.__settings
 
     @property
     def project_root_dir(self) -> Path:

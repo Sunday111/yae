@@ -58,7 +58,7 @@ class ClonedRepositoryRegistry:
                 return False
             return True
 
-        clone_destination = self.ctx.project_config.cloned_repos_dir / path
+        clone_destination = self.ctx.project_config.cloned_repositories_dir / path
         if clone_destination.exists():
             if self.__try_register_existing_checkout(path, clone_destination, git_url, git_tag):
                 return True
@@ -149,7 +149,7 @@ class ClonedRepositoryRegistry:
         return False
 
     def __save_registry_file(self):
-        self.ctx.project_config.cloned_modules_registry_file.parent.mkdir(parents=True, exist_ok=True)
+        self.ctx.project_config.cloned_repositories_registry_file.parent.mkdir(parents=True, exist_ok=True)
         converted = {
             key.as_posix(): {
                 "GitUrl": value[0],
@@ -157,12 +157,12 @@ class ClonedRepositoryRegistry:
             }
             for key, value in self.cloned_repos.items()
         }
-        json_utils.save_json_to_file(self.ctx.project_config.cloned_modules_registry_file, converted)
+        json_utils.save_json_to_file(self.ctx.project_config.cloned_repositories_registry_file, converted)
 
     def __read_registry_file(self):
-        if self.ctx.project_config.cloned_modules_registry_file.exists():
+        if self.ctx.project_config.cloned_repositories_registry_file.exists():
             for path_str, identifier in json_utils.read_json_file(
-                self.ctx.project_config.cloned_modules_registry_file
+                self.ctx.project_config.cloned_repositories_registry_file
             ).items():
-                if (self.ctx.project_config.cloned_repos_dir / str(path_str)).exists():
+                if (self.ctx.project_config.cloned_repositories_dir / str(path_str)).exists():
                     self.cloned_repos[Path(path_str)] = identifier["GitUrl"], identifier["GitTag"]

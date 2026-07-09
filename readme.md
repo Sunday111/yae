@@ -8,7 +8,7 @@ The Python implementation lives under `src/yae`; the root `yae` launcher runs th
 ## Project Model
 
 A YAE project is a directory with `yae_project.json` and one or more `*.package.json` files. Package files name a
-module directory and external package dependencies. Module files are `*.module.json` files under the package module
+module directory and cloned package dependencies. Module files are `*.module.json` files under the package module
 directory; they describe libraries, executables, or git-cloned CMake dependencies.
 
 Generated `CMakeLists.txt` files are committed project files. They must remain usable on another machine without the
@@ -53,7 +53,7 @@ including `build_targets` and `run_target`. `run` uses `run_target` by default; 
 override it.
 
 `yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
-support packages and fetched external packages. Use `--plain` when another script needs stable row-oriented output.
+support packages and fetched cloned packages. Use `--plain` when another script needs stable row-oriented output.
 
 Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
 output quiet; with this flag it passes `--progress` to git and streams clone progress.
@@ -64,17 +64,17 @@ YAE injects `https://github.com/Sunday111/yae-support` as an implicit package de
 CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
 depend on the location of the YAE CLI checkout.
 
-Generated CMake exposes external repository checkouts as a configurable cache variable:
+Generated CMake exposes cloned repository checkouts as a configurable cache variable:
 
 ```cmake
-set(YAE_EXTERNAL_MODULES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories" CACHE PATH "Path to YAE external repository checkouts")
+set(YAE_CLONED_REPOSITORIES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories" CACHE PATH "Path to YAE cloned repository checkouts")
 ```
 
 The default is `cloned_repositories` next to `yae_project.json`. This makes generated CMake self-contained for the
 default layout. To build against shared checkouts without invoking YAE, pass the cache variable directly:
 
 ```bash
-cmake -S . -B build -DYAE_EXTERNAL_MODULES_DIR=/path/to/shared/repositories
+cmake -S . -B build -DYAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
 ```
 
 `yae configure` also passes this cache variable to CMake using the repository root selected by YAE, so command-line,
@@ -82,19 +82,18 @@ local-config, and environment overrides affect configure without changing the co
 
 ## Repository Checkouts
 
-YAE resolves the repository root in this order:
+YAE resolves the cloned repositories root in this order:
 
-1. `--external_modules_dir`
+1. `--cloned_repositories_dir`
 2. `local-config.json`
-3. `YAE_EXTERNAL_MODULES_DIR`
+3. `YAE_CLONED_REPOSITORIES_DIR`
 4. `${project}/cloned_repositories`
 
-`local-config.json` may set either `external_modules_dir` or `cloned_repositories_dir`, at the top level or inside
-`default_configuration`:
+`local-config.json` may set `cloned_repositories_dir` at the top level or inside `default_configuration`:
 
 ```json
 {
-    "external_modules_dir": "/path/to/shared/repositories"
+    "cloned_repositories_dir": "/path/to/shared/repositories"
 }
 ```
 
@@ -143,4 +142,4 @@ yae self-test
 
 The self-test copies a minimal fixture project to a temporary directory, configures it, builds it, and checks that a
 content directory from a library dependency is copied next to the executable. It also checks repository-root precedence
-and the generated CMake default for `YAE_EXTERNAL_MODULES_DIR`.
+and the generated CMake default for `YAE_CLONED_REPOSITORIES_DIR`.

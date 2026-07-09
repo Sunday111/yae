@@ -11,10 +11,10 @@ from yae.resolver import resolve_project
 
 def generate_project_files(
     project_dir: Path,
-    external_modules_dir: Path | None = None,
+    cloned_repositories_dir: Path | None = None,
     show_clone_progress: bool = False,
 ) -> None:
-    resolved_project = resolve_project(project_dir, external_modules_dir, show_clone_progress=show_clone_progress)
+    resolved_project = resolve_project(project_dir, cloned_repositories_dir, show_clone_progress=show_clone_progress)
     ctx = resolved_project.context
     module_registry = resolved_project.module_registry
 
