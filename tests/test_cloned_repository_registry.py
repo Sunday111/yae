@@ -79,3 +79,19 @@ def test_existing_checkout_rejects_wrong_origin(tmp_path: Path) -> None:
         "https://github.com/Sunday111/example",
         "main",
     )
+
+
+def test_same_repository_different_refs_can_use_different_paths(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    repositories_dir = tmp_path / "repositories"
+    main_path = Path("Sunday111/main/example")
+    release_path = Path("Sunday111/v1.0.0/example")
+    url = "https://github.com/Sunday111/example"
+    write_project(project_dir)
+    create_checkout(repositories_dir / main_path, url, branch="main")
+    create_checkout(repositories_dir / release_path, url, branch="v1.0.0")
+
+    registry = registry_for(project_dir, repositories_dir)
+
+    assert registry.fetch_repo(main_path, url, "main")
+    assert registry.fetch_repo(release_path, url, "v1.0.0")

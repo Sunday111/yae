@@ -105,8 +105,9 @@ YAE resolves the cloned repositories root in this order:
 }
 ```
 
-Repository paths are derived from GitHub links. For example, `https://github.com/Sunday111/klgl main` maps to
-`Sunday111/klgl` under the selected repository root.
+Repository paths are derived from GitHub links and include the requested ref, so different tags or branches of the same
+repository can coexist. For example, `https://github.com/Sunday111/klgl main` maps to `Sunday111/main/klgl` under the
+selected repository root. A ref containing `/` is made path-safe by replacing `/` with `_`.
 
 YAE records fetched repositories in `registry.json` under the selected repository root. Existing shared checkouts are
 accepted and registered when their `origin` URL matches and the requested branch/tag is checked out, points at `HEAD`,
