@@ -2,8 +2,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+GITHUB_URL_PREFIX = "https://github.com/"
+
+
 def ref_path_name(ref: str) -> str:
     return ref.replace("/", "_")
+
+
+def parse_repo_path_from_url(url: str) -> str | None:
+    if not url.startswith(GITHUB_URL_PREFIX):
+        return None
+    return url.removeprefix(GITHUB_URL_PREFIX).removesuffix(".git")
 
 
 def versioned_repo_path(repo_path: str, ref: str) -> Path:
@@ -21,16 +30,15 @@ class GitHubLink:
 
     @staticmethod
     def parse(link: str) -> "GitHubLink":
-        prefix = "https://github.com/"
         default_tag = "main"
-        if link.startswith(prefix):
-            tokens = link.replace(prefix, "").split(" ")
+        if link.startswith(GITHUB_URL_PREFIX):
+            tokens = link.replace(GITHUB_URL_PREFIX, "").split(" ")
 
             if len(tokens) == 1:
-                return GitHubLink(url=prefix + tokens[0], tag=default_tag, subdir=versioned_repo_path(tokens[0], default_tag))
+                return GitHubLink(url=GITHUB_URL_PREFIX + tokens[0], tag=default_tag, subdir=versioned_repo_path(tokens[0], default_tag))
 
             if len(tokens) == 2:
-                return GitHubLink(url=prefix + tokens[0], tag=tokens[1], subdir=versioned_repo_path(tokens[0], tokens[1]))
+                return GitHubLink(url=GITHUB_URL_PREFIX + tokens[0], tag=tokens[1], subdir=versioned_repo_path(tokens[0], tokens[1]))
 
-        print(f"Unexpected github link. Format: {prefix}your_repo tag. Tag is optional, {default_tag} is default")
+        print(f"Unexpected github link. Format: {GITHUB_URL_PREFIX}your_repo tag. Tag is optional, {default_tag} is default")
         return None

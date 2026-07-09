@@ -4,6 +4,8 @@ from pathlib import Path
 
 from yae import json_utils
 from yae import yae_constants
+from yae.github_link import parse_repo_path_from_url
+from yae.github_link import versioned_repo_path
 
 CPP_SUFFIXES = [".cpp"]
 HPP_SUFFIXES = [".hpp"]
@@ -47,7 +49,7 @@ class Module:
         self.__extra_cmake_files: list[str] = json.get("ExtraCMakeFiles", [])
 
         if self.module_type == ModuleType.GITCLONE:
-            self.__local_path = Path(json["LocalPath"])
+            self.__local_path = self.__read_clone_local_path(json)
 
         self.__post_build_copy_dirs: list[Path] = [
             self.root_dir / x for x in json.get("CopyDirectoriesAfterBuild", list())
@@ -65,6 +67,12 @@ class Module:
         key_module_type = "ModuleType"
         module_type_str: str = file_data[key_module_type]
         self.__module_type = ModuleType[module_type_str.upper()]
+
+    def __read_clone_local_path(self, file_data: dict) -> Path:
+        repo_path = parse_repo_path_from_url(self.git_url)
+        if repo_path is not None:
+            return versioned_repo_path(repo_path, self.git_tag)
+        return Path(file_data["LocalPath"])
 
     @property
     def cmake_file_path(self) -> Path:
