@@ -28,6 +28,7 @@ yae run
 yae run some-code-sample
 yae list
 yae list --all --executables
+yae git-status
 yae self-test
 yae format
 yae cleanup
@@ -89,6 +90,11 @@ export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
 cd /anywhere
 yae list --all --plain
 ```
+
+`yae git-status` shows the git working-tree status of the project checkout and every cloned repository recorded in
+`registry.json`. By default it only lists repositories that have changes (staged, unstaged, or untracked); pass
+`--all` to also list clean repositories and non-git paths. Like `yae list`, it works from a project directory or, with
+no project known, against `YAE_CLONED_REPOSITORIES_DIR` alone.
 
 Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
 output quiet; with this flag it passes `--progress` to git and streams clone progress.

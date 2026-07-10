@@ -39,6 +39,15 @@ def normalize_url(url: str) -> str:
     return url.removesuffix(".git").rstrip("/")
 
 
+def status_short(path: Path) -> list[str] | None:
+    """Returns the `git status --porcelain` lines for `path` (empty list if clean),
+    or None if `path` is not a git work tree."""
+    output = run_git(path, ["status", "--porcelain"])
+    if output is None:
+        return None
+    return [line for line in output.splitlines() if line]
+
+
 def checkout_matches_ref(checkout_path: Path, ref: str) -> bool:
     """True if the checkout is on `ref` (as the current branch or with HEAD at the ref commit)."""
     current_branch = run_git(checkout_path, ["rev-parse", "--abbrev-ref", "HEAD"])
