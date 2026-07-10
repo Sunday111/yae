@@ -12,6 +12,7 @@ from yae.module import Module
 from yae.module import ModuleType
 from yae.module_registry import ModuleRegistry
 from yae.package import Package
+from yae.repository_fetcher import RepositoryFetcher
 
 
 YAE_SUPPORT_PACKAGE_NAME = "yae-support"
@@ -35,7 +36,7 @@ class ResolvedProject:
         return next(package for package in self.packages if package.name == YAE_SUPPORT_PACKAGE_NAME)
 
 
-def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry) -> list[Package]:
+def gather_packages(ctx: GlobalContext, fetcher: RepositoryFetcher) -> list[Package]:
     local_packages: dict[str, Package] = {}
     available_packages: dict[str, tuple[Package, GitHubLink]] = {}
     packages_to_fetch: list[tuple[str, GitHubLink]] = []
@@ -70,7 +71,7 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
                 f"Packages with the same address must be identical. Existing: {existing_link.url} {existing_link.tag} {existing_link.subdir}. New one: {link.url} {link.tag} {link.subdir}"
             )
 
-        if not repo_registry.fetch_repo(link.subdir, link.url, link.tag):
+        if not fetcher.ensure(link.subdir, link.url, link.tag):
             raise RuntimeError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
 
         repo_root = ctx.project_config.cloned_repositories_dir / link.subdir
@@ -94,7 +95,7 @@ def gather_packages(ctx: GlobalContext, repo_registry: ClonedRepositoryRegistry)
 def gather_modules(
     ctx: GlobalContext,
     packages: list[Package],
-    cloned_repo_registry: ClonedRepositoryRegistry,
+    fetcher: RepositoryFetcher,
 ) -> tuple[ModuleRegistry, dict[str, ModuleOrigin]]:
     module_registry = ModuleRegistry()
     module_origins: dict[str, ModuleOrigin] = {}
@@ -109,7 +110,7 @@ def gather_modules(
 
             module_origins[module.name] = origin
             if module.module_type == ModuleType.GITCLONE:
-                if not cloned_repo_registry.fetch_repo(module.local_path, module.git_url, module.git_tag):
+                if not fetcher.ensure(module.local_path, module.git_url, module.git_tag):
                     add_module_errors.append(
                         f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
                     )
@@ -153,8 +154,9 @@ def resolve_project(
         show_clone_progress=show_clone_progress,
     )
     repo_registry = ClonedRepositoryRegistry(ctx)
-    packages = gather_packages(ctx, repo_registry)
-    module_registry, module_origins = gather_modules(ctx, packages, repo_registry)
+    fetcher = RepositoryFetcher(ctx, repo_registry)
+    packages = gather_packages(ctx, fetcher)
+    module_registry, module_origins = gather_modules(ctx, packages, fetcher)
 
     if not module_registry.ensure_single_module_rules():
         raise RuntimeError("Module rules are invalid")

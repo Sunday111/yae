@@ -6,6 +6,7 @@ from pathlib import Path
 
 from yae.cloned_repository_registry import ClonedRepositoryRegistry
 from yae.global_context import GlobalContext
+from yae.repository_fetcher import RepositoryFetcher
 
 
 def run_git(repo: Path, *args: str) -> None:
@@ -31,10 +32,9 @@ def create_checkout(path: Path, origin_url: str, branch: str = "main") -> None:
     run_git(path, "commit", "-m", "initial")
 
 
-def registry_for(project_dir: Path, cloned_repositories_dir: Path) -> ClonedRepositoryRegistry:
-    return ClonedRepositoryRegistry(
-        GlobalContext(project_root=project_dir, cloned_repositories_dir=cloned_repositories_dir)
-    )
+def fetcher_for(project_dir: Path, cloned_repositories_dir: Path) -> RepositoryFetcher:
+    ctx = GlobalContext(project_root=project_dir, cloned_repositories_dir=cloned_repositories_dir)
+    return RepositoryFetcher(ctx, ClonedRepositoryRegistry(ctx))
 
 
 def test_existing_checkout_with_matching_branch_is_registered(tmp_path: Path) -> None:
@@ -45,9 +45,9 @@ def test_existing_checkout_with_matching_branch_is_registered(tmp_path: Path) ->
     write_project(project_dir)
     create_checkout(repositories_dir / local_path, url)
 
-    registry = registry_for(project_dir, repositories_dir)
+    fetcher = fetcher_for(project_dir, repositories_dir)
 
-    assert registry.fetch_repo(local_path, url, "main")
+    assert fetcher.ensure(local_path, url, "main")
     assert (repositories_dir / "registry.json").exists()
 
 
@@ -64,7 +64,7 @@ def test_existing_checkout_accepts_requested_ref_ancestor(tmp_path: Path) -> Non
     run_git(checkout, "add", "feature.txt")
     run_git(checkout, "commit", "-m", "feature")
 
-    assert registry_for(project_dir, repositories_dir).fetch_repo(local_path, url, "main")
+    assert fetcher_for(project_dir, repositories_dir).ensure(local_path, url, "main")
 
 
 def test_existing_checkout_rejects_wrong_origin(tmp_path: Path) -> None:
@@ -74,7 +74,7 @@ def test_existing_checkout_rejects_wrong_origin(tmp_path: Path) -> None:
     write_project(project_dir)
     create_checkout(repositories_dir / local_path, "https://github.com/Sunday111/other")
 
-    assert not registry_for(project_dir, repositories_dir).fetch_repo(
+    assert not fetcher_for(project_dir, repositories_dir).ensure(
         local_path,
         "https://github.com/Sunday111/example",
         "main",
@@ -91,7 +91,7 @@ def test_same_repository_different_refs_can_use_different_paths(tmp_path: Path) 
     create_checkout(repositories_dir / main_path, url, branch="main")
     create_checkout(repositories_dir / release_path, url, branch="v1.0.0")
 
-    registry = registry_for(project_dir, repositories_dir)
+    fetcher = fetcher_for(project_dir, repositories_dir)
 
-    assert registry.fetch_repo(main_path, url, "main")
-    assert registry.fetch_repo(release_path, url, "v1.0.0")
+    assert fetcher.ensure(main_path, url, "main")
+    assert fetcher.ensure(release_path, url, "v1.0.0")
