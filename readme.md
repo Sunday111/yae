@@ -1,203 +1,75 @@
 # YAE
 
-Use the `yae` entrypoint from this repository. It runs through `uv`, which creates a local virtual environment in
-`.venv` and stores dependency cache data in `.cache/uv`.
+YAE clones a C++ project's dependencies and generates its `CMakeLists.txt` files. The generated CMake is committed and
+builds with plain `cmake` — **YAE is not required to configure or build**. On top of that, YAE adds convenience commands
+(`build`, `run`, `list`, `git-status`, `format`, …) so day-to-day work is a single command.
 
-The Python implementation lives under `src/yae`; the root `yae` launcher runs the package entrypoint through `uv`.
+The Python implementation lives under `src/yae`; the root `yae` launcher runs it through `uv`.
 
-## Project Model
+## Requirements
 
-A YAE project is a directory with `yae_project.json` and one or more `*.package.json` files. Package files name a
-module directory and cloned package dependencies. Module files are `*.module.json` files under the package module
-directory; they describe libraries, executables, or git-cloned CMake dependencies.
+- **[uv](https://docs.astral.sh/uv/)** on your `PATH` (runs YAE in a local `.venv`; nothing is installed globally).
+- **git**, **cmake**, and a C++ toolchain with a generator (the examples use **Ninja**).
 
-Generated `CMakeLists.txt` files are committed project files. They must remain usable on another machine without the
-YAE Python tool being present. YAE is responsible for generating and fetching, but CMake is responsible for configuring
-and building after generation.
-
-## Commands
-
-From a project root:
+## Install
 
 ```bash
-yae configure
+git clone https://github.com/Sunday111/yae
+sudo ln -sf "$PWD/yae/yae" /usr/bin/yae   # optional: call it as `yae` from anywhere
+```
+
+## Quick start
+
+**Build and run a project you already have** (a directory containing `yae_project.json`):
+
+```bash
+cd path/to/project
+yae build     # fetch dependencies, generate CMake, configure, and build
+yae run       # (re)build, then run the default executable
+```
+
+`yae build` runs the whole `generate → configure → build` chain for you.
+
+**Clone a project with YAE and run it:**
+
+```bash
+export YAE_CLONED_REPOSITORIES_DIR="$HOME/yae_repositories"
 yae clone https://github.com/Sunday111/verlet_cuda
-yae generate
-yae build
-yae run
-yae run some-code-sample
-yae list
-yae list --all --executables
-yae git-status
-yae self-test
-yae format
-yae cleanup
+yae run verlet_cuda          # finds the checkout by target name — no cd needed
 ```
 
-`uv` must be available on `PATH`. Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`; they are not
-installed globally.
-
-From another directory:
+**See what a project contains:**
 
 ```bash
-./yae configure --project_dir=/path/to/project
-./yae generate --project_dir=/path/to/project
-./yae build --project_dir=/path/to/project
-./yae run --project_dir=/path/to/project
-./yae run --project_dir=/path/to/project some-code-sample
-./yae format --project_dir=/path/to/project
-./yae cleanup --project_dir=/path/to/project
+yae list                     # this project's modules
+yae git-status               # repos with uncommitted changes
 ```
 
-Commands can depend on other commands. `configure` depends on `generate`, `build` depends on `configure`, and `run`
-depends on `build`. Project-specific defaults can be stored in `yae_project.json` under `default_configuration`,
-including `build_targets` and `run_target`. `run` uses `run_target` by default; pass a positional target name to
-override it.
+## Common flags
 
-Instead of `--project_dir`, any command accepts a project directory via the `YAE_PROJECT_DIR` environment variable:
+- `--project_dir=<path>` or `YAE_PROJECT_DIR` — operate on a project without `cd`-ing into it.
+- `--cloned_repositories_dir=<path>` or `YAE_CLONED_REPOSITORIES_DIR` — where dependencies are fetched/shared.
+- `--clone-progress` — stream `git clone` progress on slow networks.
+
+## Building without YAE
+
+Because the CMake files are committed, anyone can build without the tool:
 
 ```bash
-YAE_PROJECT_DIR=/path/to/project yae build
+cmake -S . -B build -DYAE_CLONED_REPOSITORIES_DIR=/path/to/repositories
+cmake --build build --parallel
 ```
 
-`yae run <target>` also works with no project directory at all, as long as `YAE_CLONED_REPOSITORIES_DIR` points at a
-directory containing cloned project checkouts (see below). YAE searches that directory for a checkout that declares an
-executable module named `<target>` and uses it as the project:
+See [Generated CMake](documentation/generated-cmake.md) for details.
 
-```bash
-export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
-yae clone https://github.com/Sunday111/verlet_cuda
-cd /anywhere
-yae run verlet_cuda
-```
+## Documentation
 
-This only applies when a target name is given explicitly; without one there is no project to read a default
-`run_target` from, so a project directory (via `--project_dir`, `YAE_PROJECT_DIR`, or cwd) is still required.
-
-`yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
-support packages and fetched cloned packages. Use `--plain` when another script needs stable row-oriented output. Rows
-are sorted by name and show the module's type as `exe`/`lib`; the modules directory used is printed above the table.
-
-With no project directory known at all (no `--project_dir`, no `YAE_PROJECT_DIR`, and cwd isn't a project), `yae list`
-requires `--all`; without it, it errors instead of guessing. With `--all`, it falls back to
-`YAE_CLONED_REPOSITORIES_DIR` and lists modules from every origin across every cloned project checkout it finds there,
-with an extra column showing the directory each module actually lives in. A module shared by multiple cloned projects
-(a common dependency, for example) is only listed once, at its real location, regardless of how many projects depend
-on it:
-
-```bash
-export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
-cd /anywhere
-yae list --all --plain
-```
-
-`yae git-status` shows the git working-tree status of the project checkout and every cloned repository recorded in
-`registry.json`. By default it only lists repositories that have changes (staged, unstaged, or untracked); pass
-`--all` to also list clean repositories and non-git paths. Like `yae list`, it works from a project directory or, with
-no project known, against `YAE_CLONED_REPOSITORIES_DIR` alone.
-
-Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
-output quiet; with this flag it passes `--progress` to git and streams clone progress.
-
-`yae clone <github-url> [ref]` clones an active project checkout into the configured cloned repositories directory.
-Project clones use the plain GitHub repository path so the checkout can be used directly:
-
-```bash
-yae clone https://github.com/Sunday111/verlet_cuda
-cd "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/verlet_cuda"
-yae run
-```
-
-With `YAE_CLONED_REPOSITORIES_DIR` set, the `cd` step is optional: `yae run verlet_cuda` from anywhere finds this
-checkout by its `verlet_cuda` executable target, as described above.
-
-The optional `ref` defaults to `main`.
-
-## Generated CMake
-
-YAE injects `https://github.com/Sunday111/yae-support` as an implicit package dependency. That package provides the
-CMake utility modules and built-in example/module declarations used by generated projects, so generated CMake does not
-depend on the location of the YAE CLI checkout.
-
-Generated CMake exposes cloned repository checkouts as a configurable cache variable:
-
-```cmake
-set(YAE_CLONED_REPOSITORIES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories" CACHE PATH "Path to YAE cloned repository checkouts")
-```
-
-The default is `cloned_repositories` next to `yae_project.json`. This makes generated CMake self-contained for the
-default layout. To build against shared checkouts without invoking YAE, pass the cache variable directly:
-
-```bash
-cmake -S . -B build -DYAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
-```
-
-`yae configure` also passes this cache variable to CMake using the repository root selected by YAE, so command-line,
-local-config, and environment overrides affect configure without changing the committed generated default.
-
-## Repository Checkouts
-
-YAE resolves the cloned repositories root in this order:
-
-1. `--cloned_repositories_dir`
-2. `local-config.json`
-3. `YAE_CLONED_REPOSITORIES_DIR`
-4. `${project}/cloned_repositories`
-
-`local-config.json` may set `cloned_repositories_dir` at the top level or inside `default_configuration`:
-
-```json
-{
-    "cloned_repositories_dir": "/path/to/shared/repositories"
-}
-```
-
-```json
-{
-    "default_configuration": {
-        "cloned_repositories_dir": "/path/to/shared/repositories"
-    }
-}
-```
-
-Repository paths for package dependencies and GitHub `GitClone` modules are derived from GitHub links and include the
-requested ref, so different tags or branches of the same repository can coexist. For example,
-`https://github.com/Sunday111/klgl main` maps to `Sunday111/klgl/main` under the selected repository root. A ref
-containing `/` is made path-safe by replacing `/` with `_`. Non-GitHub `GitClone` modules continue to use their
-declared `LocalPath`.
-
-YAE records fetched repositories in `registry.json` under the selected repository root. Existing shared checkouts are
-accepted and registered when their `origin` URL matches and the requested branch/tag is checked out, points at `HEAD`,
-or is an ancestor of `HEAD`. This allows a shared working branch to satisfy a pinned base branch without forcing YAE to
-switch the checkout.
-
-Projects can pin the support package ref in `yae_project.json`:
-
-```json
-{
-    "yae_support": {
-        "link": "https://github.com/Sunday111/yae-support v0.1.0"
-    }
-}
-```
-
-Machine-specific configure/build overrides can also be stored next to `yae_project.json` in `local-config.json`. This
-file is merged into `default_configuration`:
-
-```json
-{
-    "cmake_definitions": {
-        "CMAKE_C_COMPILER": "/custom/clang"
-    }
-}
-```
-
-## Self Test
-
-```bash
-yae self-test
-```
-
-The self-test copies a minimal fixture project to a temporary directory, configures it, builds it, and checks that a
-content directory from a library dependency is copied next to the executable. It also checks repository-root precedence
-and the generated CMake default for `YAE_CLONED_REPOSITORIES_DIR`.
+| Topic | What's in it |
+| --- | --- |
+| [Getting started](documentation/getting-started.md) | Install, first build, cloning a project. |
+| [Commands](documentation/commands.md) | Full reference for every command and its flags. |
+| [Project model](documentation/project-model.md) | `yae_project.json`, `*.package.json`, `*.module.json`. |
+| [Repositories & running from anywhere](documentation/repositories.md) | Dependency fetching, path resolution, `YAE_PROJECT_DIR`, discovery. |
+| [Generated CMake](documentation/generated-cmake.md) | The committed CMake, building without YAE, the support package. |
+| [Configuration](documentation/configuration.md) | `local-config.json`, compiler/generator settings, pinning the support package. |
+| [Self test](documentation/self-test.md) | What `yae self-test` checks. |
