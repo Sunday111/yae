@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Generator
 
 from yae import json_utils
 from yae import yae_constants
+from yae.errors import ModuleGraphError
 from yae.github_link import GitHubLink
 
 
@@ -38,7 +41,8 @@ class Package:
         for package_json in packages:
             link = GitHubLink.parse(package_json["link"])
             for package_name in package_json["packages"]:
-                assert package_name not in self.__dependencies
+                if package_name in self.__dependencies:
+                    raise ModuleGraphError(f"Package '{package_name}' is declared as a dependency more than once")
                 self.__dependencies[package_name] = link
 
     @property

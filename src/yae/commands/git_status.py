@@ -8,6 +8,7 @@ from rich.console import Console
 from yae import git
 from yae import json_utils
 from yae import yae_constants
+from yae.errors import ProjectError
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
@@ -33,7 +34,7 @@ class GitStatusCommand(Command):
         else:
             cloned_repositories_dir = context.cloned_repositories_dir_for_discovery()
             if cloned_repositories_dir is None:
-                raise SystemExit(
+                raise ProjectError(
                     "Could not find a project or a cloned repositories directory. Run this command from a YAE "
                     "project directory, pass --project_dir/--cloned_repositories_dir, or set "
                     "YAE_PROJECT_DIR/YAE_CLONED_REPOSITORIES_DIR."

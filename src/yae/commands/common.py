@@ -9,6 +9,7 @@ import subprocess
 
 from yae import yae_constants
 from yae.cmake_project import generate_project_files
+from yae.errors import ProjectError
 from yae.local_config import get_default_configuration
 from yae.module import Module
 from yae.module import ModuleType
@@ -78,7 +79,7 @@ def find_project_dir_by_run_target(cloned_repositories_dir: Path, run_target: st
 
     if len(candidates) > 1:
         joined = ", ".join(candidate.as_posix() for candidate in candidates)
-        raise SystemExit(
+        raise ProjectError(
             f"Multiple cloned projects under {cloned_repositories_dir} provide an executable named "
             f"'{run_target}': {joined}. Use --project_dir to disambiguate."
         )

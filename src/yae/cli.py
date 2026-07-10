@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Command-line entrypoint for yae."""
 
+from __future__ import annotations
+
 import argparse
 import sys
 
 from yae.commands import create_commands
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
+from yae.errors import YaeError
 from yae.yae_logging import configure_logging
 from yae.yae_logging import get_logger
 
@@ -63,7 +66,12 @@ def main() -> None:
     configure_logging(verbose=args.verbose, log_path=context.log_project_dir() / "yae.log")
     try:
         run_command(commands_by_name[args.command], commands_by_name, context, args, set())
+    except YaeError as error:
+        # Expected failure: a single clean message, no traceback.
+        logger.error("%s", error)
+        raise SystemExit(1)
     except Exception:
+        # Unexpected failure: surface the full traceback.
         logger.exception("Command failed")
         raise SystemExit(1)
 

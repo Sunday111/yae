@@ -6,7 +6,12 @@ import time
 
 from yae import git
 from yae.cloned_repository_registry import ClonedRepositoryRegistry
+from yae.errors import FetchError
 from yae.global_context import GlobalContext
+from yae.yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class RepositoryFetcher:
@@ -28,13 +33,19 @@ class RepositoryFetcher:
         if recorded is not None:
             existing_git_url, existing_git_tag = recorded
             if existing_git_url != git_url:
-                print(
-                    f"Trying to register git repositories with different urls ({existing_git_url} and {git_url} in the same local path {path.as_posix()})"
+                logger.warning(
+                    "Trying to register git repositories with different urls (%s and %s in the same local path %s)",
+                    existing_git_url,
+                    git_url,
+                    path.as_posix(),
                 )
                 return False
             if existing_git_tag != git_tag:
-                print(
-                    f"Trying to register git repositories with different tags ({existing_git_tag} and {git_tag} in the same local path {path.as_posix()})"
+                logger.warning(
+                    "Trying to register git repositories with different tags (%s and %s in the same local path %s)",
+                    existing_git_tag,
+                    git_tag,
+                    path.as_posix(),
                 )
                 return False
             return True
@@ -46,9 +57,7 @@ class RepositoryFetcher:
         return self.__clone(path, clone_destination, git_url, git_tag)
 
     def __clone(self, path: Path, clone_destination: Path, git_url: str, git_tag: str) -> bool:
-        print(f"Cloning {git_url}", flush=True)
-        print(f"    url: {git_url}", flush=True)
-        print(f"    tag: {git_tag}", flush=True)
+        logger.info("Cloning %s (tag: %s)", git_url, git_tag)
 
         start_time = time.time()
         clone_destination.parent.mkdir(parents=True, exist_ok=True)
@@ -74,9 +83,10 @@ class RepositoryFetcher:
                     stderr=subprocess.DEVNULL,
                 )
         except subprocess.CalledProcessError as err:
-            print(f'Failed to clone repository. Command: {" ".join(err.cmd)}. Return code: {err.returncode}')
-            raise
-        print(f"    time: {time.time() - start_time:.2f}s")
+            raise FetchError(
+                f"Failed to clone {git_url} (tag: {git_tag}): git exited with {err.returncode}"
+            )
+        logger.info("Cloned %s in %.2fs", git_url, time.time() - start_time)
 
         self.registry.record(path, git_url, git_tag)
         return True
@@ -84,12 +94,15 @@ class RepositoryFetcher:
     def __register_existing_checkout(self, path: Path, checkout_path: Path, git_url: str, git_tag: str) -> bool:
         remote_url = git.run_git(checkout_path, ["remote", "get-url", "origin"])
         if remote_url is None:
-            print(f"Existing path is not a git checkout: {checkout_path.as_posix()}")
+            logger.warning("Existing path is not a git checkout: %s", checkout_path.as_posix())
             return False
 
         if git.normalize_url(remote_url) != git.normalize_url(git_url):
-            print(
-                f"Existing checkout has different origin ({remote_url} and {git_url} in the same local path {path.as_posix()})"
+            logger.warning(
+                "Existing checkout has different origin (%s and %s in the same local path %s)",
+                remote_url,
+                git_url,
+                path.as_posix(),
             )
             return False
 
@@ -108,8 +121,10 @@ class RepositoryFetcher:
             self.registry.record(path, git_url, git_tag)
             return True
 
-        print(
-            f"Existing checkout at {checkout_path.as_posix()} is not on requested ref {git_tag} "
-            f"(current ref: {current_branch or 'unknown'})"
+        logger.warning(
+            "Existing checkout at %s is not on requested ref %s (current ref: %s)",
+            checkout_path.as_posix(),
+            git_tag,
+            current_branch or "unknown",
         )
         return False

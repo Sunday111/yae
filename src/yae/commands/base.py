@@ -6,6 +6,7 @@ import argparse
 import os
 
 from yae import yae_constants
+from yae.errors import ProjectError
 from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
@@ -79,7 +80,7 @@ class CommandContext:
         """The resolved project directory, or exit with a clear error."""
         found = self.try_project_dir()
         if found is None:
-            raise SystemExit(
+            raise ProjectError(
                 f"Could not find {yae_constants.PROJECT_CONFIG_FILE_NAME} in {self._project_dir_candidate}. "
                 f"Run this command from a YAE project directory, pass --project_dir, or set {PROJECT_DIR_ENV}."
             )

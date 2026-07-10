@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
+
+from yae.errors import YaeError
 
 
 GITHUB_URL_PREFIX = "https://github.com/"
@@ -29,7 +33,7 @@ class GitHubLink:
     subdir: Path
 
     @staticmethod
-    def parse(link: str) -> "GitHubLink":
+    def parse(link: str) -> GitHubLink:
         default_tag = "main"
         if link.startswith(GITHUB_URL_PREFIX):
             tokens = link.replace(GITHUB_URL_PREFIX, "").split(" ")
@@ -40,5 +44,7 @@ class GitHubLink:
             if len(tokens) == 2:
                 return GitHubLink(url=GITHUB_URL_PREFIX + tokens[0], tag=tokens[1], subdir=versioned_repo_path(tokens[0], tokens[1]))
 
-        print(f"Unexpected github link. Format: {GITHUB_URL_PREFIX}your_repo tag. Tag is optional, {default_tag} is default")
-        return None
+        raise YaeError(
+            f"Unexpected github link '{link}'. Format: {GITHUB_URL_PREFIX}your_repo [tag]. "
+            f"Tag is optional, '{default_tag}' is the default."
+        )

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Iterable
 
 from yae.cmake_generator import CMakeGenerator
+from yae.errors import ModuleGraphError
 from yae.module import CPP_SUFFIXES
 from yae.module import CUDA_SUFFIXES
 from yae.module import Module
@@ -54,10 +55,11 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
                 is_interface_library = True
             gen.add_library(module.name, lib_type, src_var_name)
         elif module.module_type == ModuleType.EXECUTABLE:
-            assert has_cpp_files
+            if not has_cpp_files:
+                raise ModuleGraphError(f"Executable module '{module.name}' has no .cpp source files")
             gen.add_executable(module.name, src_var_name)
         else:
-            raise RuntimeError(f"Unhandled module type: {module.module_type}")
+            raise ModuleGraphError(f"Unhandled module type: {module.module_type}")
 
         public_access = "PUBLIC"
         private_access = "PRIVATE"

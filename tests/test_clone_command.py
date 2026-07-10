@@ -6,6 +6,7 @@ import subprocess
 import pytest
 
 from yae.commands.clone import clone_github_project
+from yae.errors import ProjectError
 
 
 def test_clone_github_project_uses_plain_repository_path(tmp_path: Path, monkeypatch) -> None:
@@ -55,7 +56,7 @@ def test_clone_github_project_can_show_git_progress(tmp_path: Path, monkeypatch)
 
 
 def test_clone_github_project_rejects_non_github_url(tmp_path: Path) -> None:
-    with pytest.raises(SystemExit):
+    with pytest.raises(ProjectError):
         clone_github_project(
             "https://example.com/Sunday111/verlet_cuda",
             "main",

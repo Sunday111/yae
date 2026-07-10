@@ -1,7 +1,14 @@
 """Utilities to generate cmake files"""
 
+from __future__ import annotations
+
 from typing import Iterable, TextIO
 from pathlib import Path
+
+from yae.yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class CMakeGenerator:
@@ -108,7 +115,7 @@ class CMakeGenerator:
             self.line(f"option({name} \"\" {'ON' if value else 'OFF'})")
             return True
 
-        print(f'Module {name} has variable "{name}" with unsupported type {type(value)}')
+        logger.error('Module %s has variable "%s" with unsupported type %s', name, name, type(value))
         return False
 
     def header_comment(self, text: str):

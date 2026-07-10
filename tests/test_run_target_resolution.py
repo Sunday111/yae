@@ -10,6 +10,7 @@ from yae.commands.base import CommandContext
 from yae.commands.common import find_cloned_project_dirs
 from yae.commands.common import find_executable_module
 from yae.commands.common import find_project_dir_by_run_target
+from yae.errors import ProjectError
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
 
@@ -77,7 +78,7 @@ def test_project_dir_raises_when_nothing_found(tmp_path: Path, monkeypatch) -> N
     monkeypatch.delenv(PROJECT_DIR_ENV, raising=False)
     monkeypatch.chdir(tmp_path)
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(ProjectError):
         context_for().project_dir()
 
 
@@ -171,7 +172,7 @@ def test_find_project_dir_by_run_target_raises_when_ambiguous(tmp_path: Path) ->
     write_project_with_local_support(cloned_repositories_dir / "OwnerA" / "repo-a")
     write_project_with_local_support(cloned_repositories_dir / "OwnerB" / "repo-b")
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(ProjectError):
         find_project_dir_by_run_target(cloned_repositories_dir, "app")
 
 

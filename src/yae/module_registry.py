@@ -1,10 +1,15 @@
-from pathlib import Path
+from __future__ import annotations
+
 import collections
 from typing import Iterable, Generator, Callable
 
 from yae import yae_constants
 from yae.module import Module
 from yae.module import ModuleType
+from yae.yae_logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class ModuleRegistry:
@@ -17,9 +22,12 @@ class ModuleRegistry:
     def add_one(self, module: Module) -> bool:
         if module.name in self.__lookup:
             first = self.__lookup[module.name]
-            print(f"Found duplicate of {module.name} module name:")
-            print(f"   {first.module_file_path.as_posix()} <- first occurrence")
-            print(f"   {module.module_file_path.as_posix()} <- duplicate")
+            logger.error(
+                "Found duplicate of %s module name:\n   %s <- first occurrence\n   %s <- duplicate",
+                module.name,
+                first.module_file_path.as_posix(),
+                module.module_file_path.as_posix(),
+            )
             return False
 
         self.__lookup[module.name] = module
@@ -38,7 +46,7 @@ class ModuleRegistry:
         """Ensures dependency graph can be built without cycles"""
 
         if len(self.__lookup) == 0:
-            print("Empty set of modules")
+            logger.error("Empty set of modules")
             return False
 
         visited = collections.defaultdict(bool)
@@ -55,11 +63,8 @@ class ModuleRegistry:
                     if dfs(dependency):
                         return True
                 elif dependency in stack_set:
-                    print("There is a cycle in dependency graph. Walk list: ")
-                    stack.append(dependency)
-                    for val in stack:
-                        print(f"   {val}")
-                    stack.pop()
+                    cycle_walk = "\n".join(f"   {val}" for val in [*stack, dependency])
+                    logger.error("There is a cycle in dependency graph. Walk list:\n%s", cycle_walk)
                     return True
 
             stack_set.remove(node)
@@ -83,7 +88,7 @@ class ModuleRegistry:
     def __all_dependencies_exist(self, module: Module) -> bool:
         for dep in module.all_dependencies:
             if dep not in self.__lookup:
-                print(f'"{module.name}" depends on "{dep}", which does not exist')
+                logger.error('"%s" depends on "%s", which does not exist', module.name, dep)
                 return False
         return True
 
@@ -93,9 +98,11 @@ class ModuleRegistry:
         module_file_path = self.__lookup[module.name].module_file_path
         expected_file_name = f"{module.name}{yae_constants.MODULE_EXT}"
         if module_file_path.name != expected_file_name:
-            print(
-                f"""Wrong module file name for \"{module.name}\" module: \"{module_file_path.name}\"
-                Expected file name: \"{module_file_path.name}\""""
+            logger.error(
+                'Wrong module file name for "%s" module: "%s" (expected "%s")',
+                module.name,
+                module_file_path.name,
+                expected_file_name,
             )
             return False
         return True

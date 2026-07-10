@@ -12,6 +12,7 @@ from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import find_project_dir_by_run_target
 from yae import yae_constants
+from yae.errors import ProjectError
 from yae.commands.common import get_build_dir
 from yae.commands.common import get_default_configuration
 from yae.module import ModuleType
@@ -40,7 +41,7 @@ class RunCommand(Command):
         run_target = self._resolve_run_target(project_dir, args)
         module = context.resolve_project(project_dir).module_registry.find(run_target)
         if module is None or module.module_type != ModuleType.EXECUTABLE:
-            raise SystemExit(
+            raise ProjectError(
                 f"'{run_target}' is not an executable module in {project_dir}. "
                 f"Run 'yae list --executables' to see available run targets."
             )
@@ -80,7 +81,7 @@ class RunCommand(Command):
         default_configuration = get_default_configuration(project_dir)
         run_target = args.run_target or default_configuration.get("run_target")
         if not run_target:
-            raise SystemExit("No run target was provided and default_configuration.run_target is not set")
+            raise ProjectError("No run target was provided and default_configuration.run_target is not set")
         return run_target
 
     def _run_with_discrete_gpu(self, command: list[str]) -> None:
