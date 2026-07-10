@@ -21,6 +21,7 @@ From a project root:
 
 ```bash
 yae configure
+yae clone https://github.com/Sunday111/verlet_cuda
 yae generate
 yae build
 yae run
@@ -57,6 +58,17 @@ support packages and fetched cloned packages. Use `--plain` when another script 
 
 Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
 output quiet; with this flag it passes `--progress` to git and streams clone progress.
+
+`yae clone <github-url> [ref]` clones an active project checkout into the configured cloned repositories directory.
+Project clones use the plain GitHub repository path so the checkout can be used directly:
+
+```bash
+yae clone https://github.com/Sunday111/verlet_cuda
+cd "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/verlet_cuda"
+yae run
+```
+
+The optional `ref` defaults to `main`.
 
 ## Generated CMake
 
