@@ -13,6 +13,7 @@ from yae.errors import FetchError
 from yae.errors import ProjectError
 from yae.github_link import GITHUB_URL_PREFIX
 from yae.github_link import parse_repo_path_from_url
+from yae.github_link import versioned_repo_path
 from yae.settings import ResolvedSettings
 from yae.yae_logging import get_logger
 
@@ -31,7 +32,11 @@ def clone_github_project(
     if repo_path is None:
         raise ProjectError(f"Expected a GitHub URL like {GITHUB_URL_PREFIX}owner/repository")
 
-    clone_destination = cloned_repositories_dir / repo_path
+    # A directly cloned repository must land at the same {owner/repo}/{ref} path
+    # the resolver checks dependencies out to (see versioned_repo_path), so a
+    # direct clone and a dependency checkout of the same ref share one directory
+    # instead of producing two divergent copies.
+    clone_destination = cloned_repositories_dir / versioned_repo_path(repo_path, ref)
     if clone_destination.exists():
         remote_url = git.run_git(clone_destination, ["remote", "get-url", "origin"])
         if remote_url is None:

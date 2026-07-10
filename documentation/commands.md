@@ -37,8 +37,9 @@ fetch dependencies, generate CMake, configure, build, and launch — in one comm
 ## Reference
 
 ### `yae clone <url> [ref]`
-Clone a GitHub project checkout into the configured cloned-repositories directory, using the plain `owner/repo` path so
-it can be used directly. `ref` defaults to `main`. Flags: `--cloned_repositories_dir`.
+Clone a GitHub project checkout into the configured cloned-repositories directory at `{owner/repo}/{ref}` — the same
+layout dependency resolution uses, so a direct clone and a dependency checkout of the same ref share one directory.
+`ref` defaults to `main`. Flags: `--cloned_repositories_dir`.
 
 ### `yae generate`
 Generate the committed `CMakeLists.txt` files. Fetches any missing dependencies first. Flags: `--project_dir`,

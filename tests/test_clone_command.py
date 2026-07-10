@@ -9,7 +9,7 @@ from yae.commands.clone import clone_github_project
 from yae.errors import ProjectError
 
 
-def test_clone_github_project_uses_plain_repository_path(tmp_path: Path, monkeypatch) -> None:
+def test_clone_github_project_uses_ref_qualified_repository_path(tmp_path: Path, monkeypatch) -> None:
     calls: list[list[str]] = []
 
     def fake_check_call(command: list[str], **kwargs) -> None:
@@ -24,7 +24,9 @@ def test_clone_github_project_uses_plain_repository_path(tmp_path: Path, monkeyp
         show_clone_progress=False,
     )
 
-    assert destination == tmp_path / "Sunday111" / "verlet_cuda"
+    # A direct clone lands at the same {owner/repo}/{ref} path the resolver checks
+    # dependencies out to, so a direct clone and a dependency checkout dedupe.
+    assert destination == tmp_path / "Sunday111" / "verlet_cuda" / "main"
     assert calls == [
         [
             "git",
@@ -32,7 +34,7 @@ def test_clone_github_project_uses_plain_repository_path(tmp_path: Path, monkeyp
             "--branch",
             "main",
             "https://github.com/Sunday111/verlet_cuda",
-            (tmp_path / "Sunday111" / "verlet_cuda").as_posix(),
+            (tmp_path / "Sunday111" / "verlet_cuda" / "main").as_posix(),
         ]
     ]
 
