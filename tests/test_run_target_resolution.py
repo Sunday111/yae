@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
 import pytest
 
+from yae.commands.base import CommandContext
 from yae.commands.common import find_cloned_project_dirs
 from yae.commands.common import find_executable_module
 from yae.commands.common import find_project_dir_by_run_target
-from yae.commands.common import get_cloned_repositories_dir_for_discovery
-from yae.commands.common import get_project_dir
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
+
+
+def context_for(project_dir: Path | None = None, cloned_repositories_dir: Path | None = None) -> CommandContext:
+    return CommandContext.from_args(
+        argparse.Namespace(project_dir=project_dir, cloned_repositories_dir=cloned_repositories_dir)
+    )
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -40,7 +46,7 @@ def write_project_with_local_support(project_dir: Path) -> None:
     )
 
 
-def test_get_project_dir_uses_env_fallback(tmp_path: Path, monkeypatch) -> None:
+def test_project_dir_uses_env_fallback(tmp_path: Path, monkeypatch) -> None:
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     (project_dir / "yae_project.json").write_text("{}", encoding="utf-8")
@@ -50,13 +56,10 @@ def test_get_project_dir_uses_env_fallback(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(unrelated_cwd)
     monkeypatch.setenv(PROJECT_DIR_ENV, project_dir.as_posix())
 
-    class Args:
-        project_dir = None
-
-    assert get_project_dir(Args()) == project_dir.resolve()
+    assert context_for().project_dir() == project_dir.resolve()
 
 
-def test_get_project_dir_cli_override_wins_over_env(tmp_path: Path, monkeypatch) -> None:
+def test_project_dir_cli_override_wins_over_env(tmp_path: Path, monkeypatch) -> None:
     env_project_dir = tmp_path / "env-project"
     env_project_dir.mkdir()
     (env_project_dir / "yae_project.json").write_text("{}", encoding="utf-8")
@@ -67,21 +70,15 @@ def test_get_project_dir_cli_override_wins_over_env(tmp_path: Path, monkeypatch)
 
     monkeypatch.setenv(PROJECT_DIR_ENV, env_project_dir.as_posix())
 
-    class Args:
-        project_dir = cli_project_dir
-
-    assert get_project_dir(Args()) == cli_project_dir.resolve()
+    assert context_for(project_dir=cli_project_dir).project_dir() == cli_project_dir.resolve()
 
 
-def test_get_project_dir_raises_when_nothing_found(tmp_path: Path, monkeypatch) -> None:
+def test_project_dir_raises_when_nothing_found(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv(PROJECT_DIR_ENV, raising=False)
     monkeypatch.chdir(tmp_path)
 
-    class Args:
-        project_dir = None
-
     with pytest.raises(SystemExit):
-        get_project_dir(Args())
+        context_for().project_dir()
 
 
 def test_find_executable_module_returns_executable(tmp_path: Path) -> None:
@@ -108,34 +105,25 @@ def test_find_executable_module_returns_none_for_unknown_name(tmp_path: Path) ->
     assert find_executable_module(project_dir, None, "does-not-exist") is None
 
 
-def test_get_cloned_repositories_dir_for_discovery_prefers_cli_override(tmp_path: Path, monkeypatch) -> None:
+def test_cloned_repositories_dir_for_discovery_prefers_cli_override(tmp_path: Path, monkeypatch) -> None:
     cli_dir = tmp_path / "cli"
     env_dir = tmp_path / "env"
     monkeypatch.setenv(CLONED_REPOSITORIES_DIR_ENV, env_dir.as_posix())
 
-    class Args:
-        cloned_repositories_dir = cli_dir
-
-    assert get_cloned_repositories_dir_for_discovery(Args()) == cli_dir.resolve()
+    assert context_for(cloned_repositories_dir=cli_dir).cloned_repositories_dir_for_discovery() == cli_dir.resolve()
 
 
-def test_get_cloned_repositories_dir_for_discovery_falls_back_to_env(tmp_path: Path, monkeypatch) -> None:
+def test_cloned_repositories_dir_for_discovery_falls_back_to_env(tmp_path: Path, monkeypatch) -> None:
     env_dir = tmp_path / "env"
     monkeypatch.setenv(CLONED_REPOSITORIES_DIR_ENV, env_dir.as_posix())
 
-    class Args:
-        cloned_repositories_dir = None
-
-    assert get_cloned_repositories_dir_for_discovery(Args()) == env_dir.resolve()
+    assert context_for().cloned_repositories_dir_for_discovery() == env_dir.resolve()
 
 
-def test_get_cloned_repositories_dir_for_discovery_returns_none_without_source(monkeypatch) -> None:
+def test_cloned_repositories_dir_for_discovery_returns_none_without_source(monkeypatch) -> None:
     monkeypatch.delenv(CLONED_REPOSITORIES_DIR_ENV, raising=False)
 
-    class Args:
-        cloned_repositories_dir = None
-
-    assert get_cloned_repositories_dir_for_discovery(Args()) is None
+    assert context_for().cloned_repositories_dir_for_discovery() is None
 
 
 def test_find_project_dir_by_run_target_finds_cloned_project(tmp_path: Path) -> None:

@@ -1,45 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence
 import argparse
 import subprocess
 import time
 
+from yae import git
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
-from yae.commands.common import get_cloned_repositories_dir_override
 from yae.github_link import GITHUB_URL_PREFIX
 from yae.github_link import parse_repo_path_from_url
 from yae.settings import ResolvedSettings
-
-
-def _run_git(path: Path, args: Sequence[str]) -> str | None:
-    try:
-        return subprocess.check_output(
-            ["git", "-C", path.as_posix(), *args],
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-    except subprocess.CalledProcessError:
-        return None
-
-
-def _normalize_git_url(url: str) -> str:
-    if url.startswith("git@github.com:"):
-        url = GITHUB_URL_PREFIX + url.removeprefix("git@github.com:")
-    return url.removesuffix(".git").rstrip("/")
-
-
-def _checkout_matches_ref(checkout_path: Path, ref: str) -> bool:
-    current_branch = _run_git(checkout_path, ["rev-parse", "--abbrev-ref", "HEAD"])
-    if current_branch == ref:
-        return True
-
-    head_commit = _run_git(checkout_path, ["rev-parse", "HEAD"])
-    ref_commit = _run_git(checkout_path, ["rev-list", "-n", "1", ref])
-    return head_commit is not None and head_commit == ref_commit
 
 
 def clone_github_project(
@@ -55,12 +27,12 @@ def clone_github_project(
 
     clone_destination = cloned_repositories_dir / repo_path
     if clone_destination.exists():
-        remote_url = _run_git(clone_destination, ["remote", "get-url", "origin"])
+        remote_url = git.run_git(clone_destination, ["remote", "get-url", "origin"])
         if remote_url is None:
             raise SystemExit(f"Existing path is not a git checkout: {clone_destination}")
-        if _normalize_git_url(remote_url) != _normalize_git_url(url):
+        if git.normalize_url(remote_url) != git.normalize_url(url):
             raise SystemExit(f"Existing checkout at {clone_destination} has origin {remote_url}, expected {url}")
-        if not _checkout_matches_ref(clone_destination, ref):
+        if not git.checkout_matches_ref(clone_destination, ref):
             raise SystemExit(f"Existing checkout at {clone_destination} is not on requested ref {ref}")
         print(f"Already cloned: {clone_destination}")
         return clone_destination
@@ -100,10 +72,10 @@ class CloneCommand(Command):
         parser.add_argument("ref", nargs="?", default="main", help="Branch or tag to clone")
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        settings = ResolvedSettings.from_project(Path.cwd(), get_cloned_repositories_dir_override(args))
+        settings = ResolvedSettings.from_project(Path.cwd(), context.cloned_repositories_dir_override)
         clone_github_project(
             args.url,
             args.ref,
             settings.cloned_repositories_dir,
-            show_clone_progress=args.clone_progress,
+            show_clone_progress=context.show_clone_progress,
         )

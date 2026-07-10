@@ -8,9 +8,7 @@ from yae.commands.base import add_build_dir_argument
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import get_build_dir
-from yae.commands.common import get_build_dir_override
 from yae.commands.common import get_default_configuration
-from yae.commands.common import get_project_dir
 from yae.commands.common import run_subprocess
 from yae.yae_logging import get_logger
 
@@ -30,8 +28,8 @@ class BuildCommand(Command):
         parser.add_argument("targets", nargs="*", help="Targets to build instead of default build targets")
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        project_dir = get_project_dir(args)
-        build_dir = get_build_dir(project_dir, get_build_dir_override(args))
+        project_dir = context.project_dir()
+        build_dir = get_build_dir(project_dir, context.build_dir_override)
         default_configuration = get_default_configuration(project_dir)
 
         targets = self._get_targets(args, default_configuration)

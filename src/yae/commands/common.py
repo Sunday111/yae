@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from collections.abc import Mapping
 from collections.abc import Sequence
-import argparse
 import os
 import shutil
 import subprocess
@@ -13,9 +12,8 @@ from yae.cmake_project import generate_project_files
 from yae.local_config import get_default_configuration
 from yae.module import Module
 from yae.module import ModuleType
+from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
-from yae.settings import CLONED_REPOSITORIES_DIR_ENV
-from yae.settings import PROJECT_DIR_ENV
 from yae.settings import ResolvedSettings
 from yae.yae_logging import get_logger
 
@@ -46,54 +44,6 @@ def run_subprocess(
     return_code = process.wait()
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
-
-
-def _resolve_project_dir_candidate(args: argparse.Namespace) -> Path:
-    project_dir_arg = getattr(args, "project_dir", None)
-    if project_dir_arg is not None:
-        return project_dir_arg.resolve()
-    if project_dir_env := os.environ.get(PROJECT_DIR_ENV):
-        return Path(project_dir_env).expanduser().resolve()
-    return Path.cwd().resolve()
-
-
-def try_get_project_dir(args: argparse.Namespace) -> Path | None:
-    """Like get_project_dir, but returns None instead of raising when no project is found."""
-    project_dir = _resolve_project_dir_candidate(args)
-    if (project_dir / "yae_project.json").is_file():
-        return project_dir
-    return None
-
-
-def get_project_dir(args: argparse.Namespace) -> Path:
-    project_dir = _resolve_project_dir_candidate(args)
-    if not (project_dir / "yae_project.json").is_file():
-        raise SystemExit(
-            f"Could not find yae_project.json in {project_dir}. "
-            f"Run this command from a YAE project directory, pass --project_dir, or set {PROJECT_DIR_ENV}."
-        )
-
-    return project_dir
-
-
-def get_cloned_repositories_dir_override(args: argparse.Namespace) -> Path | None:
-    cloned_repositories_dir = getattr(args, "cloned_repositories_dir", None)
-    return cloned_repositories_dir.resolve() if cloned_repositories_dir else None
-
-
-def get_cloned_repositories_dir_for_discovery(args: argparse.Namespace) -> Path | None:
-    """Resolves a cloned repositories root without needing a project directory.
-
-    Used to search for a cloned project when no project directory is otherwise
-    known: --cloned_repositories_dir/local-config resolution needs a project
-    root, but this only needs the CLI override or the environment variable.
-    """
-    override = get_cloned_repositories_dir_override(args)
-    if override is not None:
-        return override
-    if env_value := os.environ.get(CLONED_REPOSITORIES_DIR_ENV):
-        return Path(env_value).expanduser().resolve()
-    return None
 
 
 def _has_local_executable_module(project_dir: Path, module_name: str) -> bool:
@@ -135,21 +85,18 @@ def find_project_dir_by_run_target(cloned_repositories_dir: Path, run_target: st
     return candidates[0] if candidates else None
 
 
-def get_build_dir_override(args: argparse.Namespace) -> Path | None:
-    build_dir = getattr(args, "build_dir", None)
-    return build_dir.resolve() if build_dir else None
-
-
 def run_project_file_generation(
     project_dir: Path,
     cloned_repositories_dir: Path | None,
     show_clone_progress: bool = False,
+    resolved_project: ResolvedProject | None = None,
 ) -> None:
     logger.info("Generating CMake files for %s", project_dir)
     generate_project_files(
         project_dir=project_dir,
         cloned_repositories_dir=cloned_repositories_dir,
         show_clone_progress=show_clone_progress,
+        resolved_project=resolved_project,
     )
 
 

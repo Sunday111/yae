@@ -7,7 +7,6 @@ import subprocess
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_project_dir_argument
-from yae.commands.common import get_project_dir
 from yae.commands.common import run_subprocess
 from yae.yae_logging import get_logger
 
@@ -25,7 +24,7 @@ class FormatCommand(Command):
         parser.add_argument("--tool", default="clang-format", help="clang-format executable")
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        project_dir = get_project_dir(args)
+        project_dir = context.project_dir()
         source_suffixes = {".c", ".cc", ".cpp", ".cxx", ".cu", ".h", ".hh", ".hpp", ".hxx"}
         files = sorted(file for file in self._get_files(project_dir, args.all) if Path(file).suffix in source_suffixes)
         if files:

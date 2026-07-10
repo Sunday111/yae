@@ -6,6 +6,7 @@ from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.module_emitter import emit_module_cmake_file
 from yae.cmake_project.root_emitter import emit_root_project
 from yae.module import ModuleType
+from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
 
 
@@ -13,8 +14,10 @@ def generate_project_files(
     project_dir: Path,
     cloned_repositories_dir: Path | None = None,
     show_clone_progress: bool = False,
+    resolved_project: ResolvedProject | None = None,
 ) -> None:
-    resolved_project = resolve_project(project_dir, cloned_repositories_dir, show_clone_progress=show_clone_progress)
+    if resolved_project is None:
+        resolved_project = resolve_project(project_dir, cloned_repositories_dir, show_clone_progress=show_clone_progress)
     ctx = resolved_project.context
     module_registry = resolved_project.module_registry
 

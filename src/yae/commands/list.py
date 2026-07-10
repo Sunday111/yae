@@ -10,14 +10,10 @@ from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import find_cloned_project_dirs
-from yae.commands.common import get_cloned_repositories_dir_for_discovery
-from yae.commands.common import get_cloned_repositories_dir_override
-from yae.commands.common import try_get_project_dir
 from yae.module import Module
 from yae.module import ModuleType
 from yae.resolver import ModuleOrigin
 from yae.resolver import ResolvedProject
-from yae.resolver import resolve_project
 
 
 _MODULE_TYPE_ABBREVIATIONS = {
@@ -46,9 +42,9 @@ class ListCommand(Command):
         parser.add_argument("--plain", action="store_true", help="Print machine-readable rows without table formatting")
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        project_dir = try_get_project_dir(args)
+        project_dir = context.try_project_dir()
         if project_dir is not None:
-            resolved_project = self._resolve(project_dir, args)
+            resolved_project = context.resolve_project(project_dir)
             modules_dir = resolved_project.context.project_config.cloned_repositories_dir
             rows = sorted(
                 ((name, module_type) for name, module_type, _ in self._module_rows(resolved_project, args)),
@@ -64,7 +60,7 @@ class ListCommand(Command):
                 "under YAE_CLONED_REPOSITORIES_DIR."
             )
 
-        cloned_repositories_dir = get_cloned_repositories_dir_for_discovery(args)
+        cloned_repositories_dir = context.cloned_repositories_dir_for_discovery()
         if cloned_repositories_dir is None:
             raise SystemExit(
                 "Could not find yae_project.json, and no cloned repositories directory is known either. "
@@ -80,7 +76,7 @@ class ListCommand(Command):
         # source actually lives on disk, not by which project happened to resolve it.
         seen_locations: dict[Path, tuple[str, str, str]] = {}
         for candidate_dir in candidate_dirs:
-            resolved_project = self._resolve(candidate_dir, args)
+            resolved_project = context.resolve_project(candidate_dir)
             for name, module_type, root_dir in self._module_rows(resolved_project, args):
                 if root_dir in seen_locations:
                     continue
@@ -92,14 +88,6 @@ class ListCommand(Command):
 
         rows = sorted(seen_locations.values(), key=lambda row: row[0])
         self._print_rows(cloned_repositories_dir, rows, args, with_location_column=True)
-
-    def _resolve(self, project_dir: Path, args: argparse.Namespace) -> ResolvedProject:
-        cloned_repositories_dir = get_cloned_repositories_dir_override(args)
-        return resolve_project(
-            project_dir=project_dir,
-            cloned_repositories_dir=cloned_repositories_dir,
-            show_clone_progress=args.clone_progress,
-        )
 
     def _module_rows(self, resolved_project: ResolvedProject, args: argparse.Namespace) -> list[tuple[str, str, Path]]:
         module_registry = resolved_project.module_registry

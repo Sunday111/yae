@@ -10,15 +10,10 @@ from yae.commands.base import CommandContext
 from yae.commands.base import add_build_dir_argument
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
-from yae.commands.common import find_executable_module
 from yae.commands.common import find_project_dir_by_run_target
 from yae.commands.common import get_build_dir
-from yae.commands.common import get_build_dir_override
-from yae.commands.common import get_cloned_repositories_dir_for_discovery
-from yae.commands.common import get_cloned_repositories_dir_override
 from yae.commands.common import get_default_configuration
-from yae.commands.common import get_project_dir
-from yae.commands.common import try_get_project_dir
+from yae.module import ModuleType
 from yae.yae_logging import get_logger
 
 
@@ -37,54 +32,48 @@ class RunCommand(Command):
         parser.add_argument("run_target", nargs="?", help="Executable target to run instead of default run target")
         parser.add_argument("app_args", nargs=argparse.REMAINDER, help="Arguments passed to the executable")
 
-    def validate(self, args: argparse.Namespace) -> None:
+    def validate(self, context: CommandContext, args: argparse.Namespace) -> None:
         # Runs before the "build" dependency, which otherwise fails with a cryptic
         # ninja error when asked to build a nonexistent or non-executable target.
-        project_dir = self._resolve_project_dir(args)
+        project_dir = self._resolve_project_dir(context, args)
         run_target = self._resolve_run_target(project_dir, args)
-        cloned_repositories_dir = get_cloned_repositories_dir_override(args)
-        module = find_executable_module(
-            project_dir,
-            cloned_repositories_dir,
-            run_target,
-            show_clone_progress=args.clone_progress,
-        )
-        if module is None:
+        module = context.resolve_project(project_dir).module_registry.find(run_target)
+        if module is None or module.module_type != ModuleType.EXECUTABLE:
             raise SystemExit(
                 f"'{run_target}' is not an executable module in {project_dir}. "
                 f"Run 'yae list --executables' to see available run targets."
             )
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        project_dir = self._resolve_project_dir(args)
+        project_dir = self._resolve_project_dir(context, args)
         run_target = self._resolve_run_target(project_dir, args)
 
         app_args = args.app_args
         if app_args and app_args[0] == "--":
             app_args = app_args[1:]
 
-        build_dir = get_build_dir(project_dir, get_build_dir_override(args))
+        build_dir = get_build_dir(project_dir, context.build_dir_override)
         app_path = build_dir / "bin" / run_target
         logger.info("Running %s", app_path)
         self._run_with_discrete_gpu([app_path.as_posix(), *app_args])
 
-    def _resolve_project_dir(self, args: argparse.Namespace) -> Path:
-        project_dir = try_get_project_dir(args)
+    def _resolve_project_dir(self, context: CommandContext, args: argparse.Namespace) -> Path:
+        project_dir = context.try_project_dir()
         if project_dir is not None:
             return project_dir
 
         run_target = getattr(args, "run_target", None)
         if run_target:
-            cloned_repositories_dir = get_cloned_repositories_dir_for_discovery(args)
+            cloned_repositories_dir = context.cloned_repositories_dir_for_discovery()
             if cloned_repositories_dir is not None:
                 discovered = find_project_dir_by_run_target(cloned_repositories_dir, run_target)
                 if discovered is not None:
-                    # Shared with the "build"/"configure"/"generate" dependencies that
-                    # run against this same args namespace before RunCommand.run().
-                    args.project_dir = discovered
+                    # Pins the project on the shared context so the "build"/"configure"/
+                    # "generate" dependencies in this invocation resolve to it too.
+                    context.set_project_dir(discovered)
                     return discovered
 
-        return get_project_dir(args)
+        return context.project_dir()
 
     def _resolve_run_target(self, project_dir: Path, args: argparse.Namespace) -> str:
         default_configuration = get_default_configuration(project_dir)

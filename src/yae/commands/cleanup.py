@@ -6,7 +6,6 @@ import subprocess
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_project_dir_argument
-from yae.commands.common import get_project_dir
 from yae.commands.common import run_subprocess
 from yae.yae_logging import get_logger
 
@@ -22,7 +21,7 @@ class CleanupCommand(Command):
         add_project_dir_argument(parser)
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        project_dir = get_project_dir(args)
+        project_dir = context.project_dir()
         has_submodules = subprocess.run(
             ["git", "config", "--file", ".gitmodules", "--get-regexp", "path"],
             cwd=project_dir,

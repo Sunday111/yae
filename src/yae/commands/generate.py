@@ -6,8 +6,6 @@ from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
-from yae.commands.common import get_cloned_repositories_dir_override
-from yae.commands.common import get_project_dir
 from yae.commands.common import run_project_file_generation
 
 
@@ -20,8 +18,10 @@ class GenerateCommand(Command):
         add_cloned_repositories_dir_argument(parser)
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
+        project_dir = context.project_dir()
         run_project_file_generation(
-            get_project_dir(args),
-            get_cloned_repositories_dir_override(args),
-            show_clone_progress=args.clone_progress,
+            project_dir,
+            context.cloned_repositories_dir_override,
+            show_clone_progress=context.show_clone_progress,
+            resolved_project=context.resolve_project(project_dir),
         )
