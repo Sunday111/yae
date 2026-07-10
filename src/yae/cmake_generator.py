@@ -63,13 +63,13 @@ class CMakeGenerator:
 
     def target_link_libraries(self, target_name: str, access: str, dependencies: list[str]):
         if len(dependencies) > 0:
-            delcaration = f"target_link_libraries({target_name} {access} "
-            self.__write(delcaration)
+            declaration = f"target_link_libraries({target_name} {access} "
+            self.__write(declaration)
             if len(dependencies) < 2:
                 self.__write(dependencies[0])
             else:
                 space = ""
-                self.__write(f"\n{space:{len(delcaration)}}".join(dependencies))
+                self.__write(f"\n{space:{len(declaration)}}".join(dependencies))
             self.line(")")
 
     def define_cpp_standard(self, standard: int):
