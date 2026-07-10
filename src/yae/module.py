@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Iterable, Generator
 import enum
 from pathlib import Path
@@ -75,7 +77,7 @@ class Module:
         return Path(file_data["LocalPath"])
 
     @property
-    def cmake_file_path(self) -> Path:
+    def cmake_file_path(self) -> str:
         return self.__cmake_file_path
 
     @property
@@ -96,7 +98,7 @@ class Module:
         return self.__module_root_dir
 
     @property
-    def name(self) -> Path:
+    def name(self) -> str:
         """Module name"""
         return self.__module_name
 
@@ -127,7 +129,7 @@ class Module:
         return self.__module_type
 
     @property
-    def extra_cmake_files(self) -> Generator[Path, None, None]:
+    def extra_cmake_files(self) -> Generator[str, None, None]:
         yield from self.__extra_cmake_files
 
     @property
@@ -185,13 +187,13 @@ class Module:
         return not (self.enable_lto is None)
 
     @classmethod
-    def glob_files_in(cls, root: Path) -> Generator[Path, None, None]:
+    def glob_files_in(cls, root: Path) -> Iterable[Path]:
         return root.rglob(f"*{yae_constants.MODULE_EXT}")
 
     @classmethod
-    def glob_in(cls, root: Path) -> Generator["Module", None, None]:
+    def glob_in(cls, root: Path) -> Generator[Module, None, None]:
         yield from (Module(x) for x in cls.glob_files_in(root))
 
     @classmethod
-    def sorted_glob_in(cls, root: Path) -> list["Module"]:
+    def sorted_glob_in(cls, root: Path) -> list[Module]:
         return sorted(cls.glob_in(root), key=lambda x: x.name)

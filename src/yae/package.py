@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Iterable
 
 from yae import json_utils
 from yae import yae_constants
@@ -54,7 +54,7 @@ class Package:
         return self.__modules_dir
 
     @property
-    def dependencies(self) -> Generator[tuple[str, GitHubLink | None], None, None]:
+    def dependencies(self) -> Generator[tuple[str, GitHubLink], None, None]:
         yield from self.__dependencies.items()
 
     @property
@@ -62,7 +62,7 @@ class Package:
         return self.__name
 
     @classmethod
-    def glob_files_in(cls, root: Path) -> Generator[Path, None, None]:
+    def glob_files_in(cls, root: Path) -> Iterable[Path]:
         return root.rglob(f"*{yae_constants.PACKAGE_EXT}")
 
     @classmethod

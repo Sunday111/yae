@@ -103,7 +103,7 @@ class CMakeGenerator:
     def include(self, cmake_module_name: str):
         self.line(f"include({cmake_module_name})")
 
-    def target_include_directories(self, target: str, access: str, rel_dirs: str):
+    def target_include_directories(self, target: str, access: str, rel_dirs: Iterable[Path]):
         declaration = f"target_include_directories({target} {access} "
         self.__write(declaration)
         space = ""
