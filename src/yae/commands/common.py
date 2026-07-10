@@ -8,8 +8,14 @@ import os
 import shutil
 import subprocess
 
+from yae import yae_constants
 from yae.cmake_project import generate_project_files
 from yae.local_config import get_default_configuration
+from yae.module import Module
+from yae.module import ModuleType
+from yae.resolver import resolve_project
+from yae.settings import CLONED_REPOSITORIES_DIR_ENV
+from yae.settings import PROJECT_DIR_ENV
 from yae.settings import ResolvedSettings
 from yae.yae_logging import get_logger
 
@@ -42,8 +48,91 @@ def run_subprocess(
         raise subprocess.CalledProcessError(return_code, command)
 
 
+def _resolve_project_dir_candidate(args: argparse.Namespace) -> Path:
+    project_dir_arg = getattr(args, "project_dir", None)
+    if project_dir_arg is not None:
+        return project_dir_arg.resolve()
+    if project_dir_env := os.environ.get(PROJECT_DIR_ENV):
+        return Path(project_dir_env).expanduser().resolve()
+    return Path.cwd().resolve()
+
+
+def try_get_project_dir(args: argparse.Namespace) -> Path | None:
+    """Like get_project_dir, but returns None instead of raising when no project is found."""
+    project_dir = _resolve_project_dir_candidate(args)
+    if (project_dir / "yae_project.json").is_file():
+        return project_dir
+    return None
+
+
 def get_project_dir(args: argparse.Namespace) -> Path:
-    return args.project_dir.resolve()
+    project_dir = _resolve_project_dir_candidate(args)
+    if not (project_dir / "yae_project.json").is_file():
+        raise SystemExit(
+            f"Could not find yae_project.json in {project_dir}. "
+            f"Run this command from a YAE project directory, pass --project_dir, or set {PROJECT_DIR_ENV}."
+        )
+
+    return project_dir
+
+
+def get_cloned_repositories_dir_override(args: argparse.Namespace) -> Path | None:
+    cloned_repositories_dir = getattr(args, "cloned_repositories_dir", None)
+    return cloned_repositories_dir.resolve() if cloned_repositories_dir else None
+
+
+def get_cloned_repositories_dir_for_discovery(args: argparse.Namespace) -> Path | None:
+    """Resolves a cloned repositories root without needing a project directory.
+
+    Used to search for a cloned project when no project directory is otherwise
+    known: --cloned_repositories_dir/local-config resolution needs a project
+    root, but this only needs the CLI override or the environment variable.
+    """
+    override = get_cloned_repositories_dir_override(args)
+    if override is not None:
+        return override
+    if env_value := os.environ.get(CLONED_REPOSITORIES_DIR_ENV):
+        return Path(env_value).expanduser().resolve()
+    return None
+
+
+def _has_local_executable_module(project_dir: Path, module_name: str) -> bool:
+    excluded_dir_names = {"build", yae_constants.CLONED_REPOSITORIES_DIRECTORY_NAME}
+    for module_file in project_dir.rglob(f"{module_name}{yae_constants.MODULE_EXT}"):
+        if excluded_dir_names & set(module_file.relative_to(project_dir).parts):
+            continue
+        if Module(module_file).module_type == ModuleType.EXECUTABLE:
+            return True
+    return False
+
+
+def find_cloned_project_dirs(cloned_repositories_dir: Path) -> list[Path]:
+    """Finds immediate `owner/repo` project checkouts under a cloned repositories
+    root (the layout `yae clone` produces)."""
+    if not cloned_repositories_dir.is_dir():
+        return []
+    return [project_file.parent for project_file in sorted(cloned_repositories_dir.glob("*/*/yae_project.json"))]
+
+
+def find_project_dir_by_run_target(cloned_repositories_dir: Path, run_target: str) -> Path | None:
+    """Searches immediate `owner/repo` checkouts under a cloned repositories root
+    (the layout `yae clone` produces) for one that locally declares an executable
+    module named `run_target`, without resolving any project's dependencies.
+    """
+    candidates = [
+        project_dir
+        for project_dir in find_cloned_project_dirs(cloned_repositories_dir)
+        if _has_local_executable_module(project_dir, run_target)
+    ]
+
+    if len(candidates) > 1:
+        joined = ", ".join(candidate.as_posix() for candidate in candidates)
+        raise SystemExit(
+            f"Multiple cloned projects under {cloned_repositories_dir} provide an executable named "
+            f"'{run_target}': {joined}. Use --project_dir to disambiguate."
+        )
+
+    return candidates[0] if candidates else None
 
 
 def get_build_dir_override(args: argparse.Namespace) -> Path | None:
@@ -86,6 +175,23 @@ def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
         return build_dir_override
     default_configuration = get_default_configuration(project_dir)
     return resolve_project_path(project_dir, default_configuration.get("build_dir", "build"))
+
+
+def find_executable_module(
+    project_dir: Path,
+    cloned_repositories_dir: Path | None,
+    module_name: str,
+    show_clone_progress: bool = False,
+) -> Module | None:
+    resolved_project = resolve_project(
+        project_dir=project_dir,
+        cloned_repositories_dir=cloned_repositories_dir,
+        show_clone_progress=show_clone_progress,
+    )
+    module = resolved_project.module_registry.find(module_name)
+    if module is None or module.module_type != ModuleType.EXECUTABLE:
+        return None
+    return module
 
 
 def run_cmake_configure(

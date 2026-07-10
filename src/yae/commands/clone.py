@@ -9,6 +9,7 @@ import time
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
+from yae.commands.common import get_cloned_repositories_dir_override
 from yae.github_link import GITHUB_URL_PREFIX
 from yae.github_link import parse_repo_path_from_url
 from yae.settings import ResolvedSettings
@@ -99,8 +100,7 @@ class CloneCommand(Command):
         parser.add_argument("ref", nargs="?", default="main", help="Branch or tag to clone")
 
     def run(self, context: CommandContext, args: argparse.Namespace) -> None:
-        cli_cloned_repositories_dir = args.cloned_repositories_dir.resolve() if args.cloned_repositories_dir else None
-        settings = ResolvedSettings.from_project(Path.cwd(), cli_cloned_repositories_dir)
+        settings = ResolvedSettings.from_project(Path.cwd(), get_cloned_repositories_dir_override(args))
         clone_github_project(
             args.url,
             args.ref,

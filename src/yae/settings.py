@@ -9,6 +9,7 @@ from yae.local_config import read_local_config
 
 
 CLONED_REPOSITORIES_DIR_ENV = "YAE_CLONED_REPOSITORIES_DIR"
+PROJECT_DIR_ENV = "YAE_PROJECT_DIR"
 LOCAL_CONFIG_CLONED_REPOSITORIES_DIR_KEY = "cloned_repositories_dir"
 
 

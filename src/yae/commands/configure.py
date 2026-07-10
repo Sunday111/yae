@@ -8,6 +8,7 @@ from yae.commands.base import add_build_dir_argument
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import get_build_dir_override
+from yae.commands.common import get_cloned_repositories_dir_override
 from yae.commands.common import get_project_dir
 from yae.commands.common import run_cmake_configure
 
@@ -30,7 +31,7 @@ class ConfigureCommand(Command):
 
         run_cmake_configure(
             get_project_dir(args),
-            args.cloned_repositories_dir.resolve() if args.cloned_repositories_dir else None,
+            get_cloned_repositories_dir_override(args),
             get_build_dir_override(args),
             cmake_args,
         )

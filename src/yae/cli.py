@@ -3,11 +3,13 @@
 
 from pathlib import Path
 import argparse
+import os
 import sys
 
 from yae.commands import create_commands
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
+from yae.settings import PROJECT_DIR_ENV
 from yae.yae_logging import configure_logging
 from yae.yae_logging import get_logger
 
@@ -38,6 +40,8 @@ def run_command(
     if command.name in completed_commands:
         return
 
+    command.validate(args)
+
     for dependency_name in command.dependencies:
         dependency = commands_by_name.get(dependency_name)
         if dependency is None:
@@ -58,7 +62,13 @@ def main() -> None:
         parser.print_help()
         return
 
-    project_dir = args.project_dir.resolve() if hasattr(args, "project_dir") else Path.cwd()
+    project_dir_arg = getattr(args, "project_dir", None)
+    if project_dir_arg is not None:
+        project_dir = project_dir_arg.resolve()
+    elif project_dir_env := os.environ.get(PROJECT_DIR_ENV):
+        project_dir = Path(project_dir_env).expanduser().resolve()
+    else:
+        project_dir = Path.cwd()
     configure_logging(verbose=args.verbose, log_path=project_dir / "yae.log")
     context = CommandContext()
     try:
