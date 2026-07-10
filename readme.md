@@ -107,7 +107,7 @@ YAE resolves the cloned repositories root in this order:
 
 Repository paths for package dependencies and GitHub `GitClone` modules are derived from GitHub links and include the
 requested ref, so different tags or branches of the same repository can coexist. For example,
-`https://github.com/Sunday111/klgl main` maps to `Sunday111/main/klgl` under the selected repository root. A ref
+`https://github.com/Sunday111/klgl main` maps to `Sunday111/klgl/main` under the selected repository root. A ref
 containing `/` is made path-safe by replacing `/` with `_`. Non-GitHub `GitClone` modules continue to use their
 declared `LocalPath`.
 

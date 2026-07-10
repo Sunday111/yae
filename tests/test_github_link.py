@@ -8,7 +8,7 @@ def test_default_ref_is_part_of_local_path() -> None:
 
     assert link.url == "https://github.com/Sunday111/klgl"
     assert link.tag == "main"
-    assert link.subdir == Path("Sunday111/main/klgl")
+    assert link.subdir == Path("Sunday111/klgl/main")
 
 
 def test_explicit_ref_is_part_of_local_path() -> None:
@@ -16,7 +16,7 @@ def test_explicit_ref_is_part_of_local_path() -> None:
 
     assert link.url == "https://github.com/Sunday111/klgl"
     assert link.tag == "v1.2.3"
-    assert link.subdir == Path("Sunday111/v1.2.3/klgl")
+    assert link.subdir == Path("Sunday111/klgl/v1.2.3")
 
 
 def test_ref_path_replaces_slashes() -> None:
@@ -24,4 +24,4 @@ def test_ref_path_replaces_slashes() -> None:
 
     assert link.url == "https://github.com/Sunday111/klgl"
     assert link.tag == "feature/rendering"
-    assert link.subdir == Path("Sunday111/feature_rendering/klgl")
+    assert link.subdir == Path("Sunday111/klgl/feature_rendering")

@@ -21,7 +21,7 @@ def test_github_gitclone_local_path_includes_ref(tmp_path: Path) -> None:
         },
     )
 
-    assert Module(module_file).local_path == Path("Sunday111/feature_rendering/klgl")
+    assert Module(module_file).local_path == Path("Sunday111/klgl/feature_rendering")
 
 
 def test_non_github_gitclone_local_path_uses_declared_path(tmp_path: Path) -> None:

@@ -18,8 +18,8 @@ def parse_repo_path_from_url(url: str) -> str | None:
 def versioned_repo_path(repo_path: str, ref: str) -> Path:
     parts = Path(repo_path).parts
     if len(parts) >= 2:
-        return Path(parts[0], ref_path_name(ref), *parts[1:])
-    return Path(ref_path_name(ref), repo_path)
+        return Path(*parts, ref_path_name(ref))
+    return Path(repo_path, ref_path_name(ref))
 
 
 @dataclass
