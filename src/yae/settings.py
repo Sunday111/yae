@@ -49,7 +49,7 @@ class ResolvedSettings:
 
     @property
     def registry_file(self) -> Path:
-        return self.cloned_repositories_dir / "registry.json"
+        return self.cloned_repositories_dir / yae_constants.REGISTRY_FILE_NAME
 
 
 def _read_local_cloned_repositories_dir(project_root: Path) -> str | None:

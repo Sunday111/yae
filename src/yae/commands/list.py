@@ -9,6 +9,7 @@ from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
+from yae import yae_constants
 from yae.commands.common import find_cloned_project_dirs
 from yae.module import Module
 from yae.module import ModuleType
@@ -55,16 +56,16 @@ class ListCommand(Command):
 
         if not args.all:
             raise SystemExit(
-                "Could not find yae_project.json. Run this command from a YAE project directory, pass "
-                "--project_dir, set YAE_PROJECT_DIR, or pass --all to list modules across every cloned project "
-                "under YAE_CLONED_REPOSITORIES_DIR."
+                f"Could not find {yae_constants.PROJECT_CONFIG_FILE_NAME}. Run this command from a YAE project "
+                "directory, pass --project_dir, set YAE_PROJECT_DIR, or pass --all to list modules across every "
+                "cloned project under YAE_CLONED_REPOSITORIES_DIR."
             )
 
         cloned_repositories_dir = context.cloned_repositories_dir_for_discovery()
         if cloned_repositories_dir is None:
             raise SystemExit(
-                "Could not find yae_project.json, and no cloned repositories directory is known either. "
-                "Pass --cloned_repositories_dir or set YAE_CLONED_REPOSITORIES_DIR."
+                f"Could not find {yae_constants.PROJECT_CONFIG_FILE_NAME}, and no cloned repositories directory is "
+                "known either. Pass --cloned_repositories_dir or set YAE_CLONED_REPOSITORIES_DIR."
             )
 
         candidate_dirs = find_cloned_project_dirs(cloned_repositories_dir)

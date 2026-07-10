@@ -5,6 +5,7 @@ from typing import Sequence
 import argparse
 import os
 
+from yae import yae_constants
 from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
@@ -72,14 +73,14 @@ class CommandContext:
         if self._resolved_project_dir is not None:
             return self._resolved_project_dir
         candidate = self._project_dir_candidate
-        return candidate if (candidate / "yae_project.json").is_file() else None
+        return candidate if (candidate / yae_constants.PROJECT_CONFIG_FILE_NAME).is_file() else None
 
     def project_dir(self) -> Path:
         """The resolved project directory, or exit with a clear error."""
         found = self.try_project_dir()
         if found is None:
             raise SystemExit(
-                f"Could not find yae_project.json in {self._project_dir_candidate}. "
+                f"Could not find {yae_constants.PROJECT_CONFIG_FILE_NAME} in {self._project_dir_candidate}. "
                 f"Run this command from a YAE project directory, pass --project_dir, or set {PROJECT_DIR_ENV}."
             )
         return found

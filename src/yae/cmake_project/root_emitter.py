@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from yae import yae_constants
 from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.paths import CMakePathResolver
 from yae.module import ModuleType
@@ -73,7 +74,7 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
                 f"${{{variable_with_path_to_module}}}{local_cmake_file_path}",
                 is_system=True,
                 exclude_from_all=module.cmake_exclude_from_all,
-                build_directory=f"yae_modules/{module_source_path.local_path.as_posix()}",
+                build_directory=f"{yae_constants.GENERATED_MODULES_SUBDIR}/{module_source_path.local_path.as_posix()}",
             )
             gen.line()
             added_subdirs.add(module_source_path.cmake_path)
@@ -88,19 +89,19 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
 
 def _emit_output_directories(gen: CMakeGenerator) -> None:
     gen.line("# Set output directories for binaries")
-    gen.line("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)")
+    gen.line(f"set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${{CMAKE_CURRENT_BINARY_DIR}}/{yae_constants.RUNTIME_OUTPUT_SUBDIR})")
     gen.line("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})")
     gen.line("# Set output directories for archives")
-    gen.line("set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)")
+    gen.line(f"set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${{CMAKE_CURRENT_BINARY_DIR}}/{yae_constants.ARCHIVE_OUTPUT_SUBDIR})")
     gen.line("set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})")
     gen.line("# Set output directories for libraries")
-    gen.line("set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)")
+    gen.line(f"set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${{CMAKE_CURRENT_BINARY_DIR}}/{yae_constants.ARCHIVE_OUTPUT_SUBDIR})")
     gen.line("set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})")
     gen.line("set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})")

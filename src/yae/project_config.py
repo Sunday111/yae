@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Generator
 
 from yae import json_utils
+from yae import yae_constants
 from yae.github_link import GitHubLink
 from yae.package import Package
 from yae.settings import ResolvedSettings
@@ -14,7 +15,7 @@ class ProjectConfig:
     def __init__(self, root_dir: Path, settings: ResolvedSettings):
         self.root_dir = root_dir
         self.settings = settings
-        self.config_file_path = root_dir / "yae_project.json"
+        self.config_file_path = root_dir / yae_constants.PROJECT_CONFIG_FILE_NAME
         json = json_utils.read_json_file(self.config_file_path)
         self.name = json["name"]
         self.cpp_standard = json["cpp"]["standard"]

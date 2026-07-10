@@ -3,12 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
+from yae import yae_constants
 
-LOCAL_CONFIG_FILE_NAME = "local-config.json"
+
+LOCAL_CONFIG_FILE_NAME = yae_constants.LOCAL_CONFIG_FILE_NAME
 
 
 def read_project_config(project_dir: Path) -> dict:
-    with open(project_dir / "yae_project.json", mode="r", encoding="utf-8") as file:
+    with open(project_dir / yae_constants.PROJECT_CONFIG_FILE_NAME, mode="r", encoding="utf-8") as file:
         return json.load(file)
 
 

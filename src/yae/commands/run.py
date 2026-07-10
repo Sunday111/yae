@@ -11,6 +11,7 @@ from yae.commands.base import add_build_dir_argument
 from yae.commands.base import add_cloned_repositories_dir_argument
 from yae.commands.base import add_project_dir_argument
 from yae.commands.common import find_project_dir_by_run_target
+from yae import yae_constants
 from yae.commands.common import get_build_dir
 from yae.commands.common import get_default_configuration
 from yae.module import ModuleType
@@ -53,7 +54,7 @@ class RunCommand(Command):
             app_args = app_args[1:]
 
         build_dir = get_build_dir(project_dir, context.build_dir_override)
-        app_path = build_dir / "bin" / run_target
+        app_path = build_dir / yae_constants.RUNTIME_OUTPUT_SUBDIR / run_target
         logger.info("Running %s", app_path)
         self._run_with_discrete_gpu([app_path.as_posix(), *app_args])
 

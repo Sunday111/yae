@@ -47,7 +47,7 @@ def run_subprocess(
 
 
 def _has_local_executable_module(project_dir: Path, module_name: str) -> bool:
-    excluded_dir_names = {"build", yae_constants.CLONED_REPOSITORIES_DIRECTORY_NAME}
+    excluded_dir_names = {yae_constants.DEFAULT_BUILD_DIR_NAME, yae_constants.CLONED_REPOSITORIES_DIRECTORY_NAME}
     for module_file in project_dir.rglob(f"{module_name}{yae_constants.MODULE_EXT}"):
         if excluded_dir_names & set(module_file.relative_to(project_dir).parts):
             continue
@@ -61,7 +61,8 @@ def find_cloned_project_dirs(cloned_repositories_dir: Path) -> list[Path]:
     root (the layout `yae clone` produces)."""
     if not cloned_repositories_dir.is_dir():
         return []
-    return [project_file.parent for project_file in sorted(cloned_repositories_dir.glob("*/*/yae_project.json"))]
+    pattern = f"*/*/{yae_constants.PROJECT_CONFIG_FILE_NAME}"
+    return [project_file.parent for project_file in sorted(cloned_repositories_dir.glob(pattern))]
 
 
 def find_project_dir_by_run_target(cloned_repositories_dir: Path, run_target: str) -> Path | None:
@@ -121,7 +122,7 @@ def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
     if build_dir_override is not None:
         return build_dir_override
     default_configuration = get_default_configuration(project_dir)
-    return resolve_project_path(project_dir, default_configuration.get("build_dir", "build"))
+    return resolve_project_path(project_dir, default_configuration.get("build_dir", yae_constants.DEFAULT_BUILD_DIR_NAME))
 
 
 def find_executable_module(

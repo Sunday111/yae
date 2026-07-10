@@ -7,6 +7,7 @@ from rich.console import Console
 
 from yae import git
 from yae import json_utils
+from yae import yae_constants
 from yae.commands.base import Command
 from yae.commands.base import CommandContext
 from yae.commands.base import add_cloned_repositories_dir_argument
@@ -37,7 +38,7 @@ class GitStatusCommand(Command):
                     "project directory, pass --project_dir/--cloned_repositories_dir, or set "
                     "YAE_PROJECT_DIR/YAE_CLONED_REPOSITORIES_DIR."
                 )
-            registry_file = cloned_repositories_dir / "registry.json"
+            registry_file = cloned_repositories_dir / yae_constants.REGISTRY_FILE_NAME
 
         repos = self._collect_repos(project_dir, cloned_repositories_dir, registry_file)
 
