@@ -53,8 +53,42 @@ depends on `build`. Project-specific defaults can be stored in `yae_project.json
 including `build_targets` and `run_target`. `run` uses `run_target` by default; pass a positional target name to
 override it.
 
+Instead of `--project_dir`, any command accepts a project directory via the `YAE_PROJECT_DIR` environment variable:
+
+```bash
+YAE_PROJECT_DIR=/path/to/project yae build
+```
+
+`yae run <target>` also works with no project directory at all, as long as `YAE_CLONED_REPOSITORIES_DIR` points at a
+directory containing cloned project checkouts (see below). YAE searches that directory for a checkout that declares an
+executable module named `<target>` and uses it as the project:
+
+```bash
+export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
+yae clone https://github.com/Sunday111/verlet_cuda
+cd /anywhere
+yae run verlet_cuda
+```
+
+This only applies when a target name is given explicitly; without one there is no project to read a default
+`run_target` from, so a project directory (via `--project_dir`, `YAE_PROJECT_DIR`, or cwd) is still required.
+
 `yae list` shows project modules by default. Use `--support`, `--external`, or `--all` to inspect modules from implicit
-support packages and fetched cloned packages. Use `--plain` when another script needs stable row-oriented output.
+support packages and fetched cloned packages. Use `--plain` when another script needs stable row-oriented output. Rows
+are sorted by name and show the module's type as `exe`/`lib`; the modules directory used is printed above the table.
+
+With no project directory known at all (no `--project_dir`, no `YAE_PROJECT_DIR`, and cwd isn't a project), `yae list`
+requires `--all`; without it, it errors instead of guessing. With `--all`, it falls back to
+`YAE_CLONED_REPOSITORIES_DIR` and lists modules from every origin across every cloned project checkout it finds there,
+with an extra column showing the directory each module actually lives in. A module shared by multiple cloned projects
+(a common dependency, for example) is only listed once, at its real location, regardless of how many projects depend
+on it:
+
+```bash
+export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories
+cd /anywhere
+yae list --all --plain
+```
 
 Use `--clone-progress` when dependency fetching is slow or the network is unreliable. By default YAE keeps `git clone`
 output quiet; with this flag it passes `--progress` to git and streams clone progress.
@@ -67,6 +101,9 @@ yae clone https://github.com/Sunday111/verlet_cuda
 cd "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/verlet_cuda"
 yae run
 ```
+
+With `YAE_CLONED_REPOSITORIES_DIR` set, the `cd` step is optional: `yae run verlet_cuda` from anywhere finds this
+checkout by its `verlet_cuda` executable target, as described above.
 
 The optional `ref` defaults to `main`.
 
