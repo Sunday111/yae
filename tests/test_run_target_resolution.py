@@ -129,7 +129,7 @@ def test_cloned_repositories_dir_for_discovery_returns_none_without_source(monke
 
 def test_find_project_dir_by_run_target_finds_cloned_project(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo"
+    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo" / "main"
     write_project_with_local_support(project_dir)
 
     assert find_project_dir_by_run_target(cloned_repositories_dir, "app") == project_dir
@@ -137,7 +137,7 @@ def test_find_project_dir_by_run_target_finds_cloned_project(tmp_path: Path) -> 
 
 def test_find_project_dir_by_run_target_returns_none_when_no_match(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo"
+    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo" / "main"
     write_project_with_local_support(project_dir)
 
     assert find_project_dir_by_run_target(cloned_repositories_dir, "does-not-exist") is None
@@ -149,7 +149,7 @@ def test_find_project_dir_by_run_target_returns_none_for_missing_root(tmp_path: 
 
 def test_find_project_dir_by_run_target_ignores_build_and_cloned_repositories_dirs(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo"
+    project_dir = cloned_repositories_dir / "SomeOwner" / "some-repo" / "main"
     write_project_with_local_support(project_dir)
 
     # A decoy executable module file sitting under generated/fetched directories
@@ -169,8 +169,8 @@ def test_find_project_dir_by_run_target_ignores_build_and_cloned_repositories_di
 
 def test_find_project_dir_by_run_target_raises_when_ambiguous(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    write_project_with_local_support(cloned_repositories_dir / "OwnerA" / "repo-a")
-    write_project_with_local_support(cloned_repositories_dir / "OwnerB" / "repo-b")
+    write_project_with_local_support(cloned_repositories_dir / "OwnerA" / "repo-a" / "main")
+    write_project_with_local_support(cloned_repositories_dir / "OwnerB" / "repo-b" / "main")
 
     with pytest.raises(ProjectError):
         find_project_dir_by_run_target(cloned_repositories_dir, "app")
@@ -178,23 +178,28 @@ def test_find_project_dir_by_run_target_raises_when_ambiguous(tmp_path: Path) ->
 
 def test_find_cloned_project_dirs_finds_every_checkout(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    project_a = cloned_repositories_dir / "OwnerA" / "repo-a"
-    project_b = cloned_repositories_dir / "OwnerB" / "repo-b"
+    project_a = cloned_repositories_dir / "OwnerA" / "repo-a" / "main"
+    project_b = cloned_repositories_dir / "OwnerB" / "repo-b" / "v1.0"
     write_project_with_local_support(project_a)
     write_project_with_local_support(project_b)
 
     assert find_cloned_project_dirs(cloned_repositories_dir) == [project_a, project_b]
 
 
-def test_find_cloned_project_dirs_ignores_nested_dependency_checkouts(tmp_path: Path) -> None:
+def test_find_cloned_project_dirs_finds_ref_qualified_checkouts(tmp_path: Path) -> None:
     cloned_repositories_dir = tmp_path / "cloned_repositories"
-    project_dir = cloned_repositories_dir / "OwnerA" / "repo-a"
+    project_dir = cloned_repositories_dir / "OwnerA" / "repo-a" / "main"
     write_project_with_local_support(project_dir)
 
-    # A dependency checkout fetched three levels deep (owner/repo/ref) is not a
-    # project checkout and must not be picked up as one, even if it happens to
-    # contain a yae_project.json somehow.
-    write_json(cloned_repositories_dir / "OwnerC" / "repo-c" / "main" / "yae_project.json", {"name": "Nested"})
+    # A checkout at the shallower `owner/repo` depth is not a valid checkout in
+    # the unified `{owner/repo}/{ref}` layout and must not be picked up.
+    write_json(cloned_repositories_dir / "OwnerB" / "repo-b" / "yae_project.json", {"name": "Shallow"})
+    # Neither is a checkout nested more deeply (e.g. a dependency fetched under
+    # another checkout's own cloned-repositories directory).
+    write_json(
+        cloned_repositories_dir / "OwnerA" / "repo-a" / "main" / "cloned_repositories" / "OwnerC" / "repo-c" / "main" / "yae_project.json",
+        {"name": "Nested"},
+    )
 
     assert find_cloned_project_dirs(cloned_repositories_dir) == [project_dir]
 

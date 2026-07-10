@@ -58,18 +58,20 @@ def _has_local_executable_module(project_dir: Path, module_name: str) -> bool:
 
 
 def find_cloned_project_dirs(cloned_repositories_dir: Path) -> list[Path]:
-    """Finds immediate `owner/repo` project checkouts under a cloned repositories
-    root (the layout `yae clone` produces)."""
+    """Finds `{owner/repo}/{ref}` project checkouts directly under a cloned
+    repositories root (the shared layout both `yae clone` and dependency
+    resolution produce), ignoring anything nested more deeply."""
     if not cloned_repositories_dir.is_dir():
         return []
-    pattern = f"*/*/{yae_constants.PROJECT_CONFIG_FILE_NAME}"
+    pattern = f"*/*/*/{yae_constants.PROJECT_CONFIG_FILE_NAME}"
     return [project_file.parent for project_file in sorted(cloned_repositories_dir.glob(pattern))]
 
 
 def find_project_dir_by_run_target(cloned_repositories_dir: Path, run_target: str) -> Path | None:
-    """Searches immediate `owner/repo` checkouts under a cloned repositories root
-    (the layout `yae clone` produces) for one that locally declares an executable
-    module named `run_target`, without resolving any project's dependencies.
+    """Searches `{owner/repo}/{ref}` checkouts under a cloned repositories root
+    (the shared layout both `yae clone` and dependency resolution produce) for one
+    that locally declares an executable module named `run_target`, without
+    resolving any project's dependencies.
     """
     candidates = [
         project_dir

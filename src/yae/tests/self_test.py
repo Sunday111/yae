@@ -130,7 +130,7 @@ def run_project_discovery_tests(yae: str, fixture_dir: Path, cloned_repositories
     YAE_CLONED_REPOSITORIES_DIR when no project directory is otherwise known,
     without setting YAE_PROJECT_DIR or passing --project_dir."""
 
-    discoverable_project_dir = cloned_repositories_dir / "yae-self-test-owner" / "discoverable-project"
+    discoverable_project_dir = cloned_repositories_dir / "yae-self-test-owner" / "discoverable-project" / "main"
     if discoverable_project_dir.exists():
         shutil.rmtree(discoverable_project_dir)
     shutil.copytree(fixture_dir, discoverable_project_dir)
@@ -200,7 +200,7 @@ def run_project_discovery_tests(yae: str, fixture_dir: Path, cloned_repositories
         if list_result.returncode != 0:
             raise RuntimeError(f"Expected aggregate 'yae list --all' to succeed via {CLONED_REPOSITORIES_DIR_ENV}:\n{list_result.stdout}")
 
-        expected_prefix = "yae-self-test-owner/discoverable-project"
+        expected_prefix = "yae-self-test-owner/discoverable-project/main"
         expected_lines = {
             f"{'self_test_app':30} {'exe':3} {expected_prefix}/src/self_test_app",
             f"{'self_test_lib':30} {'lib':3} {expected_prefix}/src/self_test_lib",

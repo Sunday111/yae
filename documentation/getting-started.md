@@ -47,7 +47,7 @@ yae run       # (re)build, then run the project's default executable
 ```bash
 export YAE_CLONED_REPOSITORIES_DIR="$HOME/yae_repositories"
 yae clone https://github.com/Sunday111/verlet_cuda
-cd "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/verlet_cuda"
+cd "$YAE_CLONED_REPOSITORIES_DIR/Sunday111/verlet_cuda/main"
 yae run
 ```
 

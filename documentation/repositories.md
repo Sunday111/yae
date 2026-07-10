@@ -18,14 +18,15 @@ The default keeps a project self-contained. To share checkouts across projects, 
 
 ## Versioned checkout paths
 
-Dependency checkouts include the requested ref, so different tags/branches of the same repository can coexist under one
-root. `https://github.com/Sunday111/klgl main` maps to `Sunday111/klgl/main`. A ref containing `/` is made path-safe by
-replacing `/` with `_`. Non-GitHub `GitClone` modules use their declared `LocalPath` instead.
-
-`yae clone`, by contrast, uses the plain `owner/repo` path (no ref segment) so a project checkout can be used directly:
+Every checkout — whether fetched as a dependency or created by `yae clone` — lives at `{owner/repo}/{ref}`, so
+different tags/branches of the same repository can coexist under one root and a direct clone shares a directory with a
+dependency checkout of the same ref instead of producing a second copy. `https://github.com/Sunday111/klgl main` maps
+to `Sunday111/klgl/main`. A ref containing `/` is made path-safe by replacing `/` with `_`. Non-GitHub `GitClone`
+modules use their declared `LocalPath` instead.
 
 ```bash
-yae clone https://github.com/Sunday111/verlet_cuda      # → <root>/Sunday111/verlet_cuda
+yae clone https://github.com/Sunday111/verlet_cuda      # → <root>/Sunday111/verlet_cuda/main
+yae clone https://github.com/Sunday111/verlet_cuda v2   # → <root>/Sunday111/verlet_cuda/v2
 ```
 
 ## The registry
