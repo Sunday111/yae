@@ -63,6 +63,9 @@ def run_self_test(yae_root: Path) -> None:
             raise RuntimeError(f"Expected a 'Modules directory:' header line:\n{list_result.stdout}")
 
         run([yae, "configure", cloned_repositories_arg], cwd=project_dir)
+        compile_commands = project_dir / "build" / "compile_commands.json"
+        if not compile_commands.is_file():
+            raise RuntimeError(f"Expected compilation database at {compile_commands}")
         run([yae, "build", cloned_repositories_arg], cwd=project_dir)
 
         content_file = project_dir / "build" / "bin" / "content" / "self_test.txt"

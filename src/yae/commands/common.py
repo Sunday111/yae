@@ -4,7 +4,6 @@ from pathlib import Path
 from collections.abc import Mapping
 from collections.abc import Sequence
 import os
-import shutil
 import subprocess
 
 from yae import yae_constants
@@ -117,10 +116,6 @@ def resolve_config_value(project_dir: Path, value: object) -> str:
     return value.replace("${project_dir}", project_dir.as_posix())
 
 
-def should_resolve_environment_path(name: str, value: str) -> bool:
-    return name.endswith("_DIR") and not shutil.which(value)
-
-
 def get_build_dir(project_dir: Path, build_dir_override: Path | None) -> Path:
     if build_dir_override is not None:
         return build_dir_override
@@ -157,17 +152,16 @@ def run_cmake_configure(
 
     environment = os.environ.copy()
     for name, value in default_configuration.get("environment", {}).items():
-        resolved_value = resolve_config_value(project_dir, value)
-        if should_resolve_environment_path(name, resolved_value):
-            resolved_value = resolve_project_path(project_dir, resolved_value).as_posix()
-            Path(resolved_value).mkdir(parents=True, exist_ok=True)
-        environment[name] = resolved_value
+        environment[name] = resolve_config_value(project_dir, value)
 
     command = ["cmake", "-S", project_dir.as_posix(), "-B", build_dir.as_posix()]
-    if generator := default_configuration.get("generator"):
+    has_cli_generator = any(arg == "-G" or arg.startswith("-G") for arg in extra_cmake_args)
+    if not has_cli_generator:
+        generator = default_configuration.get("generator") or "Ninja"
         command.extend(["-G", str(generator)])
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
+    definitions.setdefault("CMAKE_EXPORT_COMPILE_COMMANDS", "ON")
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
     settings = ResolvedSettings.from_project(project_dir, cloned_repositories_dir)
     command.append(f"-DYAE_CLONED_REPOSITORIES_DIR={settings.cloned_repositories_dir.as_posix()}")

@@ -7,7 +7,7 @@ This guide takes you from nothing to a built-and-running project.
 - **[uv](https://docs.astral.sh/uv/)** on your `PATH`. The `yae` launcher runs the Python tool through `uv`, which
   creates a local virtual environment in `.venv` and caches dependencies in `.cache/uv`. Dependencies are declared in
   `pyproject.toml` and pinned in `uv.lock`; nothing is installed globally.
-- **git**, **cmake**, and a working C++ toolchain plus a generator (the example projects use **Ninja**).
+- **git**, **cmake**, **Ninja** (the default generator), and a working C++ toolchain.
 - For CUDA projects, the **CUDA toolkit**.
 
 ## Installing the `yae` launcher

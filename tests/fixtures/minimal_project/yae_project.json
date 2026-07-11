@@ -5,7 +5,6 @@
     },
     "default_configuration": {
         "build_dir": "build",
-        "generator": "Ninja",
         "build_targets": [
             "self_test_app"
         ],

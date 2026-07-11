@@ -16,7 +16,6 @@ def write_project(project_dir: Path) -> None:
                 "name": "TestProject",
                 "default_configuration": {
                     "build_dir": "build",
-                    "generator": "Ninja",
                     "cmake_definitions": {"CMAKE_BUILD_TYPE": "Release"},
                 },
                 "cpp": {"standard": "20"},
@@ -84,3 +83,81 @@ def test_configure_passes_resolved_cloned_repositories_dir(tmp_path: Path, monke
     )
 
     assert f"-DYAE_CLONED_REPOSITORIES_DIR={shared_repos.as_posix()}" in captured["command"]
+    assert "-G" in captured["command"]
+    assert captured["command"][captured["command"].index("-G") + 1] == "Ninja"
+    assert "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" in captured["command"]
+
+
+def test_configure_honors_generator_and_compile_commands_overrides(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    project_file = project_dir / "yae_project.json"
+    project = json.loads(project_file.read_text(encoding="utf-8"))
+    project["default_configuration"]["generator"] = "Unix Makefiles"
+    project["default_configuration"]["cmake_definitions"]["CMAKE_EXPORT_COMPILE_COMMANDS"] = "OFF"
+    project_file.write_text(json.dumps(project), encoding="utf-8")
+    captured: dict[str, list[str]] = {}
+
+    def capture(command: list[str], **kwargs) -> None:
+        captured["command"] = command
+
+    monkeypatch.setattr(common, "run_subprocess", capture)
+
+    common.run_cmake_configure(
+        project_dir=project_dir,
+        cloned_repositories_dir=tmp_path / "shared-repositories",
+        build_dir_override=None,
+        extra_cmake_args=[],
+    )
+
+    assert "-G" in captured["command"]
+    assert captured["command"][captured["command"].index("-G") + 1] == "Unix Makefiles"
+    assert "-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF" in captured["command"]
+
+
+def test_configure_honors_cli_generator_override(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    captured: dict[str, list[str]] = {}
+
+    def capture(command: list[str], **kwargs) -> None:
+        captured["command"] = command
+
+    monkeypatch.setattr(common, "run_subprocess", capture)
+
+    common.run_cmake_configure(
+        project_dir=project_dir,
+        cloned_repositories_dir=tmp_path / "shared-repositories",
+        build_dir_override=None,
+        extra_cmake_args=["-G", "Unix Makefiles"],
+    )
+
+    assert captured["command"].count("-G") == 1
+    assert captured["command"][captured["command"].index("-G") + 1] == "Unix Makefiles"
+
+
+def test_configure_does_not_resolve_or_create_environment_directories(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    project_file = project_dir / "yae_project.json"
+    project = json.loads(project_file.read_text(encoding="utf-8"))
+    project["default_configuration"]["environment"] = {"SOME_CACHE_DIR": ".cache/example"}
+    project_file.write_text(json.dumps(project), encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def capture(command: list[str], **kwargs) -> None:
+        captured["environment"] = kwargs["env"]
+
+    monkeypatch.setattr(common, "run_subprocess", capture)
+
+    common.run_cmake_configure(
+        project_dir=project_dir,
+        cloned_repositories_dir=tmp_path / "shared-repositories",
+        build_dir_override=None,
+        extra_cmake_args=[],
+    )
+
+    environment = captured["environment"]
+    assert isinstance(environment, dict)
+    assert environment["SOME_CACHE_DIR"] == ".cache/example"
+    assert not (project_dir / ".cache" / "example").exists()

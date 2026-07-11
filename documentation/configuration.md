@@ -11,15 +11,11 @@ Committed project defaults, read by `configure`, `build`, and `run`:
 {
     "default_configuration": {
         "build_dir": "build",
-        "generator": "Ninja",
         "build_targets": ["verlet_cuda"],
         "run_target": "verlet_cuda",
         "cmake_definitions": {
             "CMAKE_BUILD_TYPE": "Release",
             "CMAKE_CXX_COMPILER": "clang++"
-        },
-        "environment": {
-            "CCACHE_DIR": ".cache/ccache"
         }
     }
 }
@@ -28,15 +24,15 @@ Committed project defaults, read by `configure`, `build`, and `run`:
 | Key | Used by | Meaning |
 | --- | --- | --- |
 | `build_dir` | configure, build, run | Build directory (relative paths resolve against the project). Overridable with `--build_dir`. |
-| `generator` | configure | CMake generator (`-G`), e.g. `Ninja`. |
+| `generator` | configure | Optional CMake generator (`-G`); defaults to `Ninja`. |
 | `build_targets` | build | Default targets when `yae build` is given none. |
 | `run_target` | run | Default executable for `yae run`. |
 | `cmake_definitions` | configure | `-D<name>=<value>` cache definitions. |
 | `environment` | configure | Environment variables for the configure process. |
 
-**Value substitution:** `${project_dir}` in a value is replaced with the project's absolute path. Environment values
-whose name ends in `_DIR` and that aren't an executable on `PATH` are resolved to a project-relative path and created if
-missing (handy for cache directories like `CCACHE_DIR`).
+YAE enables `CMAKE_EXPORT_COMPILE_COMMANDS` by default. Set it to `OFF` in `cmake_definitions` to disable it.
+
+**Value substitution:** `${project_dir}` in a value is replaced with the project's absolute path.
 
 ## `local-config.json`
 

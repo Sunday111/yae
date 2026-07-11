@@ -18,7 +18,6 @@ The project root file.
     "yae_support": { "link": "https://github.com/Sunday111/yae-support main" },
     "default_configuration": {
         "build_dir": "build",
-        "generator": "Ninja",
         "build_targets": ["verlet_cuda"],
         "run_target": "verlet_cuda",
         "cmake_definitions": { "CMAKE_BUILD_TYPE": "Release" }
