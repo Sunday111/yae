@@ -93,3 +93,84 @@ def test_git_status_reports_nothing_when_all_clean(tmp_path, monkeypatch, capsys
     GitStatusCommand().run(context, argparse.Namespace(all=False))
 
     assert "No repositories with changes." in capsys.readouterr().out
+
+
+def make_clone_with_unpushed_commits(origin: Path, clone: Path, commit_count: int) -> None:
+    subprocess.check_call(
+        ["git", "clone", origin.as_posix(), clone.as_posix()],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    _run_git(clone, "config", "user.email", "test@example.com")
+    _run_git(clone, "config", "user.name", "Test User")
+    for index in range(commit_count):
+        (clone / f"local{index}.txt").write_text("x\n", encoding="utf-8")
+        _run_git(clone, "add", f"local{index}.txt")
+        _run_git(clone, "commit", "-m", f"local {index}")
+
+
+def test_unpushed_commit_count(tmp_path: Path) -> None:
+    origin = tmp_path / "origin"
+    clone = tmp_path / "clone"
+    make_repo(origin)
+    make_clone_with_unpushed_commits(origin, clone, commit_count=2)
+
+    assert git.unpushed_commit_count(clone) == 2
+    assert git.unpushed_commit_count(origin) is None  # no upstream configured
+
+
+def test_git_status_reports_unpushed_commits_in_clean_repo(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    origin = tmp_path / "origin"
+    root.mkdir()
+    make_repo(origin)
+    make_clone_with_unpushed_commits(origin, root / "Owner" / "ahead-repo", commit_count=2)
+    _write_registry(root, ["Owner/ahead-repo"])
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    out = capsys.readouterr().out
+    assert "Owner/ahead-repo" in out
+    assert "2 commits not pushed" in out
+
+
+def test_git_status_reports_branch_without_upstream(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    origin = tmp_path / "origin"
+    root.mkdir()
+    make_repo(origin)
+    repo = root / "Owner" / "local-branch-repo"
+    make_clone_with_unpushed_commits(origin, repo, commit_count=0)
+    _run_git(repo, "switch", "-c", "feature")
+
+    _write_registry(root, ["Owner/local-branch-repo"])
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    out = capsys.readouterr().out
+    assert "Owner/local-branch-repo" in out
+    assert "branch has no upstream" in out
+
+
+def test_git_status_silent_about_detached_head_and_no_remotes(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    origin = tmp_path / "origin"
+    root.mkdir()
+    make_repo(origin)
+
+    # Dependency checkouts are typically detached at a tag.
+    detached = root / "Owner" / "detached-repo"
+    make_clone_with_unpushed_commits(origin, detached, commit_count=0)
+    _run_git(detached, "checkout", "--detach", "HEAD")
+
+    # A repository without remotes has nowhere to push to.
+    make_repo(root / "Owner" / "no-remote-repo")
+
+    _write_registry(root, ["Owner/detached-repo", "Owner/no-remote-repo"])
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    assert "No repositories with changes." in capsys.readouterr().out

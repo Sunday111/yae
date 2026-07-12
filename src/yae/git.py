@@ -48,6 +48,27 @@ def status_short(path: Path) -> list[str] | None:
     return [line for line in output.splitlines() if line]
 
 
+def has_remotes(path: Path) -> bool:
+    """Whether the repository has any remotes configured."""
+    return bool(run_git(path, ["remote"]))
+
+
+def current_branch(path: Path) -> str | None:
+    """Returns the current branch name, or None when HEAD is detached
+    or `path` is not a git work tree."""
+    output = run_git(path, ["symbolic-ref", "--short", "-q", "HEAD"])
+    return output or None
+
+
+def unpushed_commit_count(path: Path) -> int | None:
+    """Returns the number of commits on HEAD that its upstream branch does not have,
+    or None when there is no upstream to compare against."""
+    output = run_git(path, ["rev-list", "--count", "@{upstream}..HEAD"])
+    if output is None:
+        return None
+    return int(output)
+
+
 def checkout_matches_ref(checkout_path: Path, ref: str) -> bool:
     """True if the checkout is on `ref` (as the current branch or with HEAD at the ref commit)."""
     current_branch = run_git(checkout_path, ["rev-parse", "--abbrev-ref", "HEAD"])

@@ -82,8 +82,11 @@ by on-disk location). See [Repositories](repositories.md#listing-from-anywhere).
 
 ### `yae git-status`
 Show the git working-tree status of the project checkout and every cloned repository in `registry.json`. By default
-only repositories with changes (staged, unstaged, or untracked) are shown; `--all` also lists clean repositories and
-non-git paths. Works from a project or, with no project known, against `YAE_CLONED_REPOSITORIES_DIR` alone.
+only repositories with something to report are shown: working-tree changes (staged, unstaged, or untracked), commits
+the upstream branch does not have yet (`N commits not pushed`), or a branch that has no upstream at all. Detached
+checkouts (dependencies pinned to tags) and repositories without remotes are not reported as unpushed. `--all` also
+lists clean repositories and non-git paths. Works from a project or, with no project known, against
+`YAE_CLONED_REPOSITORIES_DIR` alone.
 
 ### `yae format`
 Apply `clang-format -i` to changed source files. `--all` formats all tracked and untracked sources; `--tool` overrides

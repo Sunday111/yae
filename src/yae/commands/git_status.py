@@ -52,20 +52,44 @@ class GitStatusCommand(Command):
                     console.print(f"[yellow]{label}[/] [red](not a git repository)[/]")
                     shown += 1
                 continue
-            if not lines:
+
+            push_note = self._push_note(repo)
+            if not lines and push_note is None:
                 if args.all:
                     console.print(f"[green]{label}[/] clean")
                     shown += 1
                 continue
 
-            noun = "change" if len(lines) == 1 else "changes"
-            console.print(f"[bold yellow]{label}[/] [dim]({len(lines)} {noun})[/]")
+            parts = [f"[bold yellow]{label}[/]"]
+            if lines:
+                noun = "change" if len(lines) == 1 else "changes"
+                parts.append(f"[dim]({len(lines)} {noun})[/]")
+            if push_note is not None:
+                parts.append(f"[cyan]({push_note})[/]")
+            console.print(" ".join(parts))
             for line in lines:
                 console.print(f"  {line}")
             shown += 1
 
         if shown == 0:
             console.print("No repositories with changes.")
+
+    @staticmethod
+    def _push_note(repo: Path) -> str | None:
+        """A note about commits the remote does not have, or None when there is nothing to tell.
+
+        Detached checkouts (dependencies pinned to tags) are not reported."""
+        unpushed = git.unpushed_commit_count(repo)
+        if unpushed is None:
+            # A branch that never got an upstream is entirely unpushed; repositories
+            # without remotes have nowhere to push to, so stay silent about them.
+            if git.current_branch(repo) is not None and git.has_remotes(repo):
+                return "branch has no upstream"
+            return None
+        if unpushed == 0:
+            return None
+        noun = "commit" if unpushed == 1 else "commits"
+        return f"{unpushed} {noun} not pushed"
 
     def _collect_repos(
         self,
