@@ -8,6 +8,11 @@ This guide takes you from nothing to a built-and-running project.
   creates a local virtual environment in `.venv` and caches dependencies in `.cache/uv`. Dependencies are declared in
   `pyproject.toml` and pinned in `uv.lock`; nothing is installed globally.
 - **git**, **cmake**, **Ninja** (the default generator), and a working C++ toolchain.
+- **Python 3** on your `PATH`, for projects that stage content (`CopyDirectoriesAfterBuild`): the build
+  runs a script to stage it. This one is a requirement of the *generated project*, not of YAE, so it
+  applies to anyone building it — see
+  [Generated CMake](generated-cmake.md#building-without-yae). It is separate from the interpreter `uv`
+  manages for YAE itself.
 - For CUDA projects, the **CUDA toolkit**.
 
 ## Installing the `yae` launcher

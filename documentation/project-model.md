@@ -83,7 +83,7 @@ A module is a library, executable, or git-cloned dependency. The file name (minu
 | Field | Applies to | Meaning |
 | --- | --- | --- |
 | `Dependencies.Public` / `Dependencies.Private` | library, executable | Names of modules linked publicly/privately. |
-| `CopyDirectoriesAfterBuild` | library, executable | Directories copied next to the built binary (e.g. `content`). |
+| `CopyDirectoriesAfterBuild` | library, executable | Directories staged next to the built binary (e.g. `content`) — see [below](#copying-directories-after-build). |
 | `ExtraCMakeFiles` | library, executable | Extra `.cmake` files to `include()` for the target. |
 | `TargetName` | library, executable | Override the CMake target name (defaults to the module name). |
 | `EnableTesting` | library, executable | Enable CTest / GoogleTest discovery for the target. |
