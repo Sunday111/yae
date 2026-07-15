@@ -8,8 +8,11 @@ The self-test copies a minimal fixture project (`tests/fixtures/minimal_project`
 a full slice of YAE end-to-end:
 
 - **`list`** produces the expected project modules.
-- **`configure` + `build`** succeed, and a `content` directory from a library dependency is copied next to the built
-  executable.
+- **`configure` + `build`** succeed, and a `content` directory from a library dependency is staged next to the built
+  executable. Staging is then exercised as it is actually used: a rebuild leaves an unchanged file alone, an edited file
+  is re-staged, a file added after configure is staged without configuring again, a deleted source takes its staged copy
+  with it, and a file the build never staged is left where it is. See
+  [Copying directories after build](project-model.md#copying-directories-after-build).
 - **Cloned-repositories-directory precedence** is honored (CLI > `local-config.json` > environment > project default),
   and the generated CMake default for `YAE_CLONED_REPOSITORIES_DIR` is correct.
 - **Running from anywhere** works: commands find the project via `YAE_PROJECT_DIR` from an unrelated directory, `yae run`
@@ -19,4 +22,32 @@ a full slice of YAE end-to-end:
 
 Use `--yae-root` to point at a specific YAE checkout containing `tests/fixtures`.
 
-The unit tests (run with `pytest`) live under `tests/` and cover the same building blocks in isolation.
+It builds a real project, so it needs what any generated project needs: CMake, a C++ toolchain and a Python 3
+interpreter — see [Getting started](getting-started.md#requirements).
+
+It fetches its dependencies into `.cache/self-test-repositories`, which is reused between runs. The support package is
+the exception: it is dropped and fetched again on every run. A [fetched repository](repositories.md#the-registry) is
+never updated once it is there, which is what a pinned dependency wants — but the support package ships the CMake and
+scripts generated projects build with, and it moves with YAE, so a run that reused an old one would be testing the wrong
+thing.
+
+## Unit tests
+
+```bash
+uv run pytest
+```
+
+They live under `tests/` and cover the same building blocks in isolation.
+
+Some of them test scripts that ship in the [support package](generated-cmake.md#the-support-package) rather than in this
+repository — generated projects run those scripts without YAE present, but YAE decides how they are called, so they are
+tested here. They need a `yae-support` checkout, looked for in this order:
+
+1. `YAE_SUPPORT_ROOT`, if set — name a checkout outright.
+2. `yae-support` next to the YAE checkout.
+3. `yae-support` under `YAE_CLONED_REPOSITORIES_DIR`, at the usual
+   [versioned path](repositories.md#versioned-checkout-paths).
+4. Whatever a previous `yae self-test` run fetched into `.cache/self-test-repositories`.
+
+Without one, those tests fail with a message listing the paths tried; the rest of the suite still runs. CI checks the
+package out and sets `YAE_SUPPORT_ROOT`.

@@ -12,17 +12,37 @@ import os
 from pathlib import Path
 from types import ModuleType
 
+from yae.github_link import GitHubLink
+from yae.project_config import DEFAULT_YAE_SUPPORT_LINK
 from yae.resolver import YAE_SUPPORT_PACKAGE_NAME
+from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 
 SUPPORT_ROOT_ENV = "YAE_SUPPORT_ROOT"
+
+
+def _candidate_roots() -> list[Path]:
+    yae_root = Path(__file__).resolve().parents[3]
+    # Wherever it ends up, the checkout is laid out the way yae lays every checkout out.
+    checkout_subdir = GitHubLink.parse(DEFAULT_YAE_SUPPORT_LINK).subdir
+
+    candidates = [yae_root.parent / YAE_SUPPORT_PACKAGE_NAME]
+
+    cloned_repositories_dir = os.environ.get(CLONED_REPOSITORIES_DIR_ENV)
+    if cloned_repositories_dir:
+        candidates.append(Path(cloned_repositories_dir) / checkout_subdir)
+
+    # Whatever a previous self-test run fetched.
+    candidates.append(yae_root / ".cache" / "self-test-repositories" / checkout_subdir)
+
+    return candidates
 
 
 def find_support_root() -> Path:
     """Path to a yae-support checkout.
 
-    YAE_SUPPORT_ROOT wins, so a test run can point at a specific checkout. Otherwise
-    look next to the yae repository, which is how the repositories are laid out on a
-    development machine.
+    YAE_SUPPORT_ROOT wins, so a test run - CI, for one - can name the checkout outright.
+    Otherwise look where a checkout plausibly is: beside the yae repository, under the
+    cloned repositories directory, or in what a self-test run fetched.
     """
 
     from_env = os.environ.get(SUPPORT_ROOT_ENV)
@@ -32,12 +52,7 @@ def find_support_root() -> Path:
             raise RuntimeError(f"{SUPPORT_ROOT_ENV} points at a directory that does not exist: {support_root}")
         return support_root
 
-    yae_root = Path(__file__).resolve().parents[3]
-    candidates = [
-        yae_root.parent / YAE_SUPPORT_PACKAGE_NAME,
-        yae_root.parent / "yae_data" / "Sunday111" / YAE_SUPPORT_PACKAGE_NAME / "main",
-        yae_root / ".cache" / "self-test-repositories" / "Sunday111" / YAE_SUPPORT_PACKAGE_NAME / "main",
-    ]
+    candidates = _candidate_roots()
     for candidate in candidates:
         if (candidate / "scripts").is_dir():
             return candidate
