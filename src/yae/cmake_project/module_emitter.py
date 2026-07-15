@@ -13,18 +13,30 @@ from yae.module_registry import ModuleRegistry
 
 
 def emit_copy_target(gen: CMakeGenerator, module: Module) -> None:
+    """Emits the step that stages this module's directories next to the built binary.
+
+    Per module, so that building a target stages the content of that target and what it
+    links, and nothing else - a module outside the build leaves the output directory
+    alone. The manifest is what lets the module remove its own stale files without
+    touching the ones another module staged into the same place.
+    """
+
     copy_dirs = list(sorted(module.post_build_copy_dirs))
     if not copy_dirs:
         return
 
-    gen.line(f"add_custom_target({module.cmake_target_name}_copy_files ALL")
+    target = f"{module.cmake_target_name}_copy_files"
+    gen.line(f"add_custom_target({target} ALL")
     for copy_dir in copy_dirs:
-        command = f"    ${{CMAKE_COMMAND}} -E copy_directory"
-        command += f' "${{CMAKE_CURRENT_SOURCE_DIR}}/{copy_dir.relative_to(module.root_dir)}"'
-        command += f" ${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{copy_dir.stem}"
-        gen.line(command)
-    gen.line(")")
-    gen.line(f"add_dependencies({module.cmake_target_name} {module.cmake_target_name}_copy_files)")
+        relative_dir = copy_dir.relative_to(module.root_dir).as_posix()
+        destination = copy_dir.stem
+        gen.line('    COMMAND ${Python3_EXECUTABLE} "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"')
+        gen.line(f'            --destination "${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{destination}"')
+        gen.line(f'            --source "${{CMAKE_CURRENT_SOURCE_DIR}}/{relative_dir}"')
+        gen.line(f'            --manifest "${{CMAKE_CURRENT_BINARY_DIR}}/{target}_{destination}.manifest"')
+    gen.line(f'    COMMENT "stage content of {module.cmake_target_name}"')
+    gen.line("    VERBATIM)")
+    gen.line(f"add_dependencies({module.cmake_target_name} {target})")
 
 
 def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> None:
@@ -88,6 +100,7 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
             gen.line(f"gtest_discover_tests({module.name})")
 
         emit_copy_target(gen, module)
+
 
 
 def _to_cmake_modules(modules: Iterable[str], module_registry: ModuleRegistry) -> list[str]:

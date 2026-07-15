@@ -45,6 +45,8 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         gen.include("yae_lto")
         gen.line("enable_lto_globally()" if ctx.project_config.enable_lto_globally else "disable_lto_globally()")
 
+    _emit_staging_interpreter(gen, resolved_project)
+
     gen.line()
     gen.line()
 
@@ -85,6 +87,26 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
 
     gen.line()
     gen.line("enable_testing()")
+
+
+def _emit_staging_interpreter(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:
+    """Finds the interpreter that modules staging content will use.
+
+    Found here rather than baked in as the one yae happens to be running under: the
+    generated project has to build without yae. Modules are added below this, so they
+    all see Python3_EXECUTABLE.
+    """
+
+    module_registry = resolved_project.module_registry
+    stages_anything = any(
+        (module := module_registry.find(module_name)) is not None and any(module.post_build_copy_dirs)
+        for module_name in module_registry.topological_sort()
+    )
+    if not stages_anything:
+        return
+
+    gen.line()
+    gen.line("find_package(Python3 REQUIRED COMPONENTS Interpreter)")
 
 
 def _emit_output_directories(gen: CMakeGenerator) -> None:

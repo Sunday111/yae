@@ -1,6 +1,8 @@
 local-config.json
 .venv
 .cache
+# yae-support checkout made by CI to test the scripts it ships
+.yae-support
 
 ##### Windows
 # Windows thumbnail cache files
