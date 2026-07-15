@@ -9,8 +9,11 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from yae import yae_constants
 from yae.cmake_project.paths import CMakePathResolver
+from yae.github_link import GitHubLink
 from yae.global_context import GlobalContext
+from yae.project_config import DEFAULT_YAE_SUPPORT_LINK
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
 from yae.settings import ResolvedSettings
@@ -18,6 +21,18 @@ from yae.settings import ResolvedSettings
 
 def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
+
+
+def run_stdout(command: list[str], cwd: Path) -> str:
+    """Runs a command and returns what it printed, without what it logged.
+
+    yae logs to stderr and prints results to stdout. run() merges the two so a failure
+    reports everything, which is what you want there - but it would also let a line about
+    a repository being fetched land in the middle of output being parsed.
+    """
+
+    result = subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    return result.stdout
 
 
 @contextmanager
@@ -41,9 +56,29 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=4), encoding="utf-8")
 
 
+def drop_support_checkout(fixture_dir: Path, cloned_repositories_dir: Path) -> None:
+    """Removes the cached yae-support checkout so the run fetches it again.
+
+    Fetched checkouts are reused and never updated, which is what you want for a pinned
+    dependency. The support package is not one: it ships the cmake and scripts generated
+    projects build with, and it moves with yae. Left alone, a run would build against
+    whatever an earlier run happened to fetch, and fail - or worse, pass - for reasons
+    that have nothing to do with the code under test.
+    """
+
+    project = json.loads((fixture_dir / yae_constants.PROJECT_CONFIG_FILE_NAME).read_text(encoding="utf-8"))
+    yae_support = project.get("yae_support", {})
+    link = yae_support if isinstance(yae_support, str) else yae_support.get("link", DEFAULT_YAE_SUPPORT_LINK)
+
+    checkout = cloned_repositories_dir / GitHubLink.parse(link).subdir
+    if checkout.is_dir():
+        shutil.rmtree(checkout)
+
+
 def run_self_test(yae_root: Path) -> None:
     fixture_dir = yae_root / "tests" / "fixtures" / "minimal_project"
     cloned_repositories_dir = yae_root / ".cache" / "self-test-repositories"
+    drop_support_checkout(fixture_dir, cloned_repositories_dir)
 
     with tempfile.TemporaryDirectory(prefix="yae-self-test-") as temp_dir:
         project_dir = Path(temp_dir) / "minimal_project"
@@ -52,15 +87,13 @@ def run_self_test(yae_root: Path) -> None:
         yae = (yae_root / "yae").as_posix()
         cloned_repositories_arg = f"--cloned_repositories_dir={cloned_repositories_dir}"
 
-        list_result = run([yae, "list", "--plain", cloned_repositories_arg], cwd=project_dir)
+        list_output = run_stdout([yae, "list", "--plain", cloned_repositories_arg], cwd=project_dir)
         expected_modules = {f"{'self_test_app':30} exe", f"{'self_test_lib':30} lib"}
-        listed_modules = {
-            line for line in list_result.stdout.splitlines() if not line.startswith("Modules directory:")
-        }
+        listed_modules = {line for line in list_output.splitlines() if not line.startswith("Modules directory:")}
         if listed_modules != expected_modules:
-            raise RuntimeError(f"Unexpected default list output:\n{list_result.stdout}")
-        if not list_result.stdout.startswith("Modules directory: "):
-            raise RuntimeError(f"Expected a 'Modules directory:' header line:\n{list_result.stdout}")
+            raise RuntimeError(f"Unexpected default list output:\n{list_output}")
+        if not list_output.startswith("Modules directory: "):
+            raise RuntimeError(f"Expected a 'Modules directory:' header line:\n{list_output}")
 
         run([yae, "configure", cloned_repositories_arg], cwd=project_dir)
         compile_commands = project_dir / "build" / "compile_commands.json"
