@@ -9,9 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Generated projects run scripts that live in yae-support, and yae decides how
+      # they are called, so their tests are here and need a checkout of it.
+      - name: Check out yae-support
+        uses: actions/checkout@v4
+        with:
+          repository: Sunday111/yae-support
+          path: .yae-support
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Run tests
         run: uv run --project . pytest
+        env:
+          YAE_SUPPORT_ROOT: ${{ github.workspace }}/.yae-support
       - name: Type check
         run: uv run --project . pyright

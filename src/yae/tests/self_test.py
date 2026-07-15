@@ -72,9 +72,63 @@ def run_self_test(yae_root: Path) -> None:
         if content_file.read_text(encoding="utf-8").strip() != "content copied":
             raise RuntimeError(f"Expected copied content at {content_file}")
 
+        run_content_staging_tests(yae, project_dir, cloned_repositories_arg, content_file)
+
         run_project_dir_env_tests(yae, project_dir, cloned_repositories_dir, Path(temp_dir))
         run_project_discovery_tests(yae, fixture_dir, cloned_repositories_dir, Path(temp_dir))
         run_cloned_repositories_dir_tests(fixture_dir, Path(temp_dir))
+
+
+def run_content_staging_tests(yae: str, project_dir: Path, cloned_repositories_arg: str, content_file: Path) -> None:
+    """Content declared by CopyDirectoriesAfterBuild is staged into the output directory,
+    which mirrors the sources: a rebuild only touches what changed, a file added later
+    needs no manual configure, and a deleted one takes its staged copy with it."""
+
+    content_dir = project_dir / "src" / "self_test_lib" / "content"
+    source_file = content_dir / "self_test.txt"
+
+    # Nothing changed, so the staged file must be left exactly as it was. Copying the
+    # whole directory every build would rewrite it and move its timestamp.
+    stamp_before = content_file.stat().st_mtime_ns
+    run([yae, "build", cloned_repositories_arg], cwd=project_dir)
+    if content_file.stat().st_mtime_ns != stamp_before:
+        raise RuntimeError(f"Expected a rebuild to leave the unchanged {content_file.name} alone")
+
+    # An edited file must reach the output directory.
+    source_file.write_text("content edited\n", encoding="utf-8")
+    run([yae, "build", cloned_repositories_arg], cwd=project_dir)
+    if content_file.read_text(encoding="utf-8").strip() != "content edited":
+        raise RuntimeError(f"Expected the edited content to be staged at {content_file}")
+
+    # A file that did not exist when the project was configured must be staged too: the
+    # sources are searched during the build, so this needs no configure step.
+    added_file = content_dir / "added_later.txt"
+    added_file.write_text("added later\n", encoding="utf-8")
+    run([yae, "build", cloned_repositories_arg], cwd=project_dir)
+    staged_added_file = content_file.parent / "added_later.txt"
+    if not staged_added_file.is_file():
+        raise RuntimeError(f"Expected a file added after configure to be staged at {staged_added_file}")
+    if staged_added_file.read_text(encoding="utf-8").strip() != "added later":
+        raise RuntimeError(f"Expected the added file's content at {staged_added_file}")
+
+    # A deleted source must take its staged copy with it, or whatever runs from the
+    # output directory would still find an asset the project no longer has.
+    added_file.unlink()
+    run([yae, "build", cloned_repositories_arg], cwd=project_dir)
+    if staged_added_file.exists():
+        raise RuntimeError(f"Expected the staged copy of a deleted source to be removed: {staged_added_file}")
+
+    # Removing it must not disturb the files that are still staged.
+    if content_file.read_text(encoding="utf-8").strip() != "content edited":
+        raise RuntimeError(f"Expected {content_file} to survive the removal of an unrelated file")
+
+    # A module stages what it staged itself, so anything else in the output directory is
+    # not its to remove.
+    left_by_hand = content_file.parent / "left_by_hand.txt"
+    left_by_hand.write_text("left by hand\n", encoding="utf-8")
+    run([yae, "build", cloned_repositories_arg], cwd=project_dir)
+    if not left_by_hand.is_file():
+        raise RuntimeError(f"Expected a file the build never staged to be left alone: {left_by_hand}")
 
 
 def run_project_dir_env_tests(yae: str, project_dir: Path, cloned_repositories_dir: Path, temp_dir: Path) -> None:

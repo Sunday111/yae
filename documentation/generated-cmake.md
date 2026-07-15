@@ -43,6 +43,8 @@ Pin the support package ref in `yae_project.json` — see
 
 - Runtime binaries are written to `<build>/bin`, archives/libraries to `<build>/lib`.
 - Each fetched module is added under `<build>/yae_modules/<path>` as a CMake subdirectory.
-- `CopyDirectoriesAfterBuild` entries (e.g. `content`) are copied next to the executable after build.
+- `CopyDirectoriesAfterBuild` entries (e.g. `content`) are staged next to the executable by a
+  `<target>_copy_files` target per module, so a build stages what it needs and no more. See
+  [Copying directories after build](project-model.md#copying-directories-after-build).
 
 Regenerate the files with [`yae generate`](commands.md#yae-generate) whenever you add or change modules.

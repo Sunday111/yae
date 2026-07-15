@@ -90,6 +90,37 @@ A module is a library, executable, or git-cloned dependency. The file name (minu
 | `EnableLTO` | library, executable | Force LTO on/off for this target. |
 | `CMakeOptions` | any | CMake `option()`s set before adding the module. |
 
+### Copying directories after build
+
+Each directory listed in `CopyDirectoriesAfterBuild` is staged next to the built binary, under
+`<build>/bin/<directory name>`.
+
+Each module stages its own directories, using `scripts/stage_directories.py` from `yae-support`.
+Generated projects therefore need a Python interpreter to build, but not yae.
+
+**Building a target stages what that target needs, and nothing else** — its own content plus the
+content of everything it links. A module outside the build does not put its files in the output
+directory. (Content staged by an *earlier* build of another target stays where it is; the output
+directory is not wiped to match the target you last built.)
+
+Several modules usually stage into the same destination — a library ships its shaders and every
+example that uses it ships its own. Each module records what it staged in a manifest under its build
+directory, which is what lets it remove a file whose source was deleted without touching files
+another module staged into the same place. Anything a module did not stage itself, including files
+left there by hand, it leaves alone.
+
+Only the source directories are baked into the generated CMake, and they change only when a module
+declares a different one. The files themselves are searched at build time, so adding, editing or
+deleting one takes effect on the next build with no re-configure.
+
+Two things follow from each module only knowing its own files. If two modules stage a file to the
+same path, nothing detects it and the last build wins. And if a module is deleted from the project,
+nothing removes what it staged — delete the build directory to be rid of it.
+
+One thing to know: a file is restaged when its source is *newer*, not merely different. A source that
+somehow ends up older than what is staged — restored from an archive that preserved timestamps, say —
+is not restaged. Checkouts write current timestamps, so this does not come up in normal work.
+
 ### GitClone fields
 
 | Field | Meaning |
