@@ -2,7 +2,7 @@
 
 YAE clones a C++ project's dependencies and generates its `CMakeLists.txt` files. The generated CMake is committed and
 builds with plain `cmake` — **YAE is not required to configure or build**. On top of that, YAE adds convenience commands
-(`build`, `run`, `list`, `git-status`, `format`, …) so day-to-day work is a single command.
+(`build`, `run`, `list`, `git-status`, `format`, `tidy`, …) so day-to-day work is a single command.
 
 The Python implementation lives under `src/yae`; the root `yae` launcher runs it through `uv`.
 

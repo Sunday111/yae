@@ -98,6 +98,19 @@ Unlike project commands, `format` works in any Git work tree without a `yae_proj
 root from the current directory, `--repository_dir`, the backward-compatible `--project_dir` alias, or
 `YAE_PROJECT_DIR`; invoking it from a nested directory still formats changes across the whole repository.
 
+### `yae tidy [-- clang-tidy args...]`
+Run `clang-tidy` on changed C, C++, and CUDA translation units. `--all` checks every existing tracked and non-ignored
+untracked translation unit, including unmodified files; `--tool` overrides the `clang-tidy` executable. Extra arguments
+after `--` are forwarded to `clang-tidy`.
+
+`tidy` works in any Git work tree like `format`, but requires an existing `compile_commands.json`. It uses
+`--build_dir`, the YAE project's configured build directory, or `<repository>/build`, in that order. This lets a package
+use a consumer's compilation database, for example:
+
+```bash
+yae tidy --repository_dir /path/to/klvk --build_dir /path/to/verlet/build
+```
+
 ### `yae cleanup`
 Re-sync git submodules (if any) and then run `git clean -ffdX`. **This deletes all git-ignored files** in the project
 (build directories, generated artifacts, etc.), so use it deliberately. Flags: `--project_dir`.
