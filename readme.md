@@ -49,7 +49,8 @@ yae git-status               # repos with uncommitted changes
 
 ## Common flags
 
-- `--project_dir=<path>` or `YAE_PROJECT_DIR` — operate on a project without `cd`-ing into it.
+- `--project_dir=<path>` or `YAE_PROJECT_DIR` — operate on a project without `cd`-ing into it. For `format`, the path
+  may be any Git repository even when it has no `yae_project.json`; `--repository_dir` is a clearer alias.
 - `--cloned_repositories_dir=<path>` or `YAE_CLONED_REPOSITORIES_DIR` — where dependencies are fetched/shared.
 - `--clone-progress` — stream `git clone` progress on slow networks.
 
