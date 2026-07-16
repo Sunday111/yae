@@ -18,7 +18,8 @@ Every command that operates on a project resolves the project directory in this 
 3. the current working directory
 
 The resolved directory must contain `yae_project.json`. `yae run <target>` can additionally *discover* a project by
-target name — see [Repositories & running from anywhere](repositories.md).
+target name — see [Repositories & running from anywhere](repositories.md). `yae format` is the exception: it accepts
+any directory inside a Git work tree and does not require a YAE project.
 
 The cloned-repositories directory is resolved separately; see
 [Repositories](repositories.md#resolving-the-cloned-repositories-directory).
@@ -89,8 +90,13 @@ lists clean repositories and non-git paths. Works from a project or, with no pro
 `YAE_CLONED_REPOSITORIES_DIR` alone.
 
 ### `yae format`
-Apply `clang-format -i` to changed source files. `--all` formats all tracked and untracked sources; `--tool` overrides
-the `clang-format` executable. Source suffixes: `.c .cc .cpp .cxx .cu .h .hh .hpp .hxx`. Flags: `--project_dir`.
+Apply `clang-format -i` to changed source files. `--all` formats every existing tracked and non-ignored untracked
+source, including unmodified files; deleted files remain untouched. `--tool` overrides the `clang-format` executable.
+Source suffixes: `.c .cc .cpp .cxx .cu .h .hh .hpp .hxx`.
+
+Unlike project commands, `format` works in any Git work tree without a `yae_project.json`. It resolves the repository
+root from the current directory, `--repository_dir`, the backward-compatible `--project_dir` alias, or
+`YAE_PROJECT_DIR`; invoking it from a nested directory still formats changes across the whole repository.
 
 ### `yae cleanup`
 Re-sync git submodules (if any) and then run `git clean -ffdX`. **This deletes all git-ignored files** in the project
