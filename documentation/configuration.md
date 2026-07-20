@@ -23,7 +23,7 @@ Committed project defaults, read by `configure`, `build`, and `run`:
 
 | Key | Used by | Meaning |
 | --- | --- | --- |
-| `build_dir` | configure, build, run | Build directory (relative paths resolve against the project). Overridable with `--build_dir`. |
+| `build_dir` | configure, build, run, tidy | Build directory (relative paths resolve against the project). Overridable with `--build_dir`. |
 | `generator` | configure | Optional CMake generator (`-G`); defaults to `Ninja`. |
 | `build_targets` | build | Default targets when `yae build` is given none. |
 | `run_target` | run | Default executable for `yae run`. |
