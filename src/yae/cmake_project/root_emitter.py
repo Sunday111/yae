@@ -3,9 +3,11 @@ from __future__ import annotations
 from yae import yae_constants
 from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.paths import CMakePathResolver
+from yae.module import Module
 from yae.module import ModuleType
 from yae.resolver import ModuleOrigin
 from yae.resolver import ResolvedProject
+from yae.system_triple import current_system_triple
 
 
 def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:
@@ -56,6 +58,14 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         if module is None:
             continue
 
+        # A binary dependency is already unpacked in the shared root; expose its
+        # own CMake package here, before any consumer's add_subdirectory, so the
+        # imported target is visible to link against. No sources, so nothing else
+        # in the loop applies.
+        if module.module_type == ModuleType.BINARY:
+            _emit_binary_dependency(gen, module, path_resolver)
+            continue
+
         prefer_project_root = resolved_project.module_origins[module.name] == ModuleOrigin.PROJECT
         module_source_path = path_resolver.module_source_path(module, prefer_project_root=prefer_project_root)
         if module_source_path.cmake_path in added_subdirs:
@@ -87,6 +97,21 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
 
     gen.line()
     gen.line("enable_testing()")
+
+
+def _emit_binary_dependency(gen: CMakeGenerator, module: Module, path_resolver: CMakePathResolver) -> None:
+    triple = current_system_triple()
+    extract_dir = module.binary_extract_dir(triple)
+    cmake_path = path_resolver.source_path(extract_dir)
+    gen.line(f"# binary dependency {module.name} ({triple})")
+    # NO_DEFAULT_PATH pins resolution to the unpacked SDK - never a same-named
+    # package elsewhere on the system - and REQUIRED fails loudly if the fetch
+    # step did not produce it.
+    gen.line(
+        f"find_package({module.find_package_name} CONFIG REQUIRED "
+        f"PATHS {cmake_path} NO_DEFAULT_PATH)"
+    )
+    gen.line()
 
 
 def _emit_staging_interpreter(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:

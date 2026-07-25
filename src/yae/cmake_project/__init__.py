@@ -27,7 +27,9 @@ def generate_project_files(
     for module in (module_registry.find(module_name) for module_name in module_registry.topological_sort()):
         if module is None:
             continue
-        if module.module_type == ModuleType.GITCLONE:
+        # GITCLONE and BINARY modules bring their own CMake (a cloned source tree
+        # or an unpacked SDK's config package), so yae generates none for them.
+        if module.module_type in (ModuleType.GITCLONE, ModuleType.BINARY):
             continue
         if not module.generate_cmake_file:
             continue

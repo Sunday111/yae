@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 import itertools
 
+from yae.binary_artifact_fetcher import BinaryArtifactFetcher
 from yae.cloned_repository_registry import ClonedRepositoryRegistry
 from yae.errors import FetchError
 from yae.errors import ModuleGraphError
@@ -106,6 +107,7 @@ def gather_modules(
     module_registry = ModuleRegistry()
     module_origins: dict[str, ModuleOrigin] = {}
     add_module_errors: list[str] = []
+    binary_fetcher = BinaryArtifactFetcher()
 
     for package in packages:
         origin = get_package_origin(ctx, package)
@@ -120,6 +122,11 @@ def gather_modules(
                     add_module_errors.append(
                         f"Failed to clone this uri: {module.git_url}. Check it exists and has {module.git_tag} branch or tag"
                     )
+            elif module.module_type == ModuleType.BINARY:
+                try:
+                    binary_fetcher.ensure(module)
+                except FetchError as err:
+                    add_module_errors.append(str(err))
 
     if add_module_errors:
         for error in add_module_errors:

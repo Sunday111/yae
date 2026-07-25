@@ -134,7 +134,9 @@ class ListCommand(Command):
         Console().print(table)
 
     def _should_show_module(self, module: Module, origin: ModuleOrigin, args: argparse.Namespace) -> bool:
-        if module.module_type == ModuleType.GITCLONE:
+        # GITCLONE and BINARY are fetched external dependencies, not buildable
+        # project modules, so they stay out of the listing.
+        if module.module_type in (ModuleType.GITCLONE, ModuleType.BINARY):
             return False
         if args.executables:
             if module.module_type != ModuleType.EXECUTABLE:

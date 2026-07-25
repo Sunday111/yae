@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Iterable, Generator
+from dataclasses import dataclass
 import enum
 from pathlib import Path
 
 from yae import json_utils
 from yae import yae_constants
+from yae.errors import ModuleGraphError
 from yae.github_link import parse_repo_path_from_url
 from yae.github_link import versioned_repo_path
 
@@ -14,12 +16,24 @@ HPP_SUFFIXES = [".hpp"]
 CUDA_SUFFIXES = [".cu"]
 
 
+@dataclass(frozen=True)
+class BinaryArtifact:
+    """A prebuilt archive for one system triple, pinned by URL and checksum."""
+
+    url: str
+    sha256: str
+
+
 class ModuleType(enum.Enum):
     """The type of module"""
 
     LIBRARY = 1
     EXECUTABLE = 2
     GITCLONE = 3
+    # A prebuilt binary dependency: yae downloads and unpacks a released archive
+    # for the host triple instead of cloning and building source, then exposes the
+    # archive's own CMake package. See BINARY handling in the resolver and emitter.
+    BINARY = 4
 
 
 class Module:
@@ -38,6 +52,8 @@ class Module:
         if self.module_type == ModuleType.GITCLONE:
             self.__git_url = json["GitUrl"]
             self.__git_tag = json["GitTag"]
+        if self.module_type == ModuleType.BINARY:
+            self.__read_binary(json)
         self.__cmake_file_path = json.get("CMakeFilePath", "")
 
         self.__cmake_target_name: None | str = json.get("TargetName", None)
@@ -75,6 +91,41 @@ class Module:
         if repo_path is not None:
             return versioned_repo_path(repo_path, self.git_tag)
         return Path(file_data["LocalPath"])
+
+    def __read_binary(self, file_data: dict) -> None:
+        # Triple -> {"Url": ..., "Sha256": ...}. The set of triples is the set of
+        # systems this dependency ships prebuilt for; the checksum is mandatory
+        # because a downloaded blob has no other integrity guarantee.
+        self.__artifacts: dict[str, BinaryArtifact] = {}
+        for triple, spec in file_data["Artifacts"].items():
+            self.__artifacts[triple] = BinaryArtifact(url=spec["Url"], sha256=spec["Sha256"])
+        if not self.__artifacts:
+            raise ModuleGraphError(f"Binary module '{self.name}' declares no artifacts")
+        # find_package name defaults to the module name; the archive's config
+        # package and the target it exports (via CMakeModularTargets) are what
+        # consumers actually link.
+        self.__find_package_name: str = file_data.get("FindPackage", self.name)
+
+    def select_artifact(self, triple: str) -> BinaryArtifact:
+        artifact = self.__artifacts.get(triple)
+        if artifact is None:
+            available = ", ".join(sorted(self.__artifacts)) or "none"
+            raise ModuleGraphError(
+                f"Binary module '{self.name}' has no artifact for system triple '{triple}' (available: {available})"
+            )
+        return artifact
+
+    def binary_extract_dir(self, triple: str) -> Path:
+        """Where the artifact for `triple` is unpacked - beside the manifest, git-ignored."""
+        return self.root_dir / ".prebuilt" / triple
+
+    @property
+    def artifacts(self) -> dict[str, BinaryArtifact]:
+        return self.__artifacts
+
+    @property
+    def find_package_name(self) -> str:
+        return self.__find_package_name
 
     @property
     def cmake_file_path(self) -> str:
