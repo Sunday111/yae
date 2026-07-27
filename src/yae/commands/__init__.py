@@ -8,6 +8,7 @@ from yae.commands.git_status import GitStatusCommand
 from yae.commands.list import ListCommand
 from yae.commands.run import RunCommand
 from yae.commands.self_test import SelfTestCommand
+from yae.commands.test import TestCommand
 from yae.commands.tidy import TidyCommand
 
 
@@ -18,6 +19,7 @@ def create_commands():
         ConfigureCommand(),
         BuildCommand(),
         RunCommand(),
+        TestCommand(),
         ListCommand(),
         GitStatusCommand(),
         FormatCommand(),
