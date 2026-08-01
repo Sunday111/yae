@@ -88,6 +88,15 @@ class CMakeGenerator:
     def disable_cpp_extensions(self):
         self.line("set(CMAKE_CXX_EXTENSIONS OFF)")
 
+    def define_cuda_standard(self, standard: int):
+        self.line(f"set(CMAKE_CUDA_STANDARD {standard})")
+
+    def require_cuda_standard(self):
+        self.line("set(CMAKE_CUDA_STANDARD_REQUIRED ON)")
+
+    def disable_cuda_extensions(self):
+        self.line("set(CMAKE_CUDA_EXTENSIONS OFF)")
+
     @staticmethod
     def patch_rel_path(rel_path: Path):
         return f"${{CMAKE_CURRENT_SOURCE_DIR}}/{rel_path.as_posix()}"

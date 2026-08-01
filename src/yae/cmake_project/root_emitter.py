@@ -3,8 +3,10 @@ from __future__ import annotations
 from yae import yae_constants
 from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.paths import CMakePathResolver
+from yae.module import CUDA_SUFFIXES
 from yae.module import Module
 from yae.module import ModuleType
+from yae.module_registry import ModuleRegistry
 from yae.resolver import ModuleOrigin
 from yae.resolver import ResolvedProject
 from yae.system_triple import current_system_triple
@@ -22,6 +24,10 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
     gen.define_cpp_standard(ctx.project_config.cpp_standard)
     gen.require_cpp_standard()
     gen.disable_cpp_extensions()
+    if _project_has_cuda(module_registry):
+        gen.define_cuda_standard(ctx.project_config.cpp_standard)
+        gen.require_cuda_standard()
+        gen.disable_cuda_extensions()
 
     _emit_output_directories(gen)
 
@@ -112,6 +118,14 @@ def _emit_binary_dependency(gen: CMakeGenerator, module: Module, path_resolver: 
         f"PATHS {cmake_path} NO_DEFAULT_PATH)"
     )
     gen.line()
+
+
+def _project_has_cuda(module_registry: ModuleRegistry) -> bool:
+    return any(
+        (module := module_registry.find(module_name)) is not None
+        and any(path.suffix in CUDA_SUFFIXES for path in module.source_files)
+        for module_name in module_registry.topological_sort()
+    )
 
 
 def _emit_staging_interpreter(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:
