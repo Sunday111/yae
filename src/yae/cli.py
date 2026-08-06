@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import argparse
 import sys
 
@@ -30,26 +31,44 @@ def create_parser(commands: list[Command]) -> argparse.ArgumentParser:
     return parser
 
 
-def run_command(
-    command: Command,
-    commands_by_name: dict[str, Command],
-    context: CommandContext,
-    args: argparse.Namespace,
-    completed_commands: set[str],
-) -> None:
-    if command.name in completed_commands:
-        return
+def execution_list(command: Command, commands_by_name: dict[str, Command]) -> list[Command]:
+    """Everything the command needs run, dependencies before dependents."""
+    ordered: list[Command] = []
+    visited: set[str] = set()
 
-    command.validate(context, args)
+    def visit(current: Command) -> None:
+        if current.name in visited:
+            return
+        visited.add(current.name)
 
-    for dependency_name in command.dependencies:
-        dependency = commands_by_name.get(dependency_name)
-        if dependency is None:
-            raise RuntimeError(f"Command {command.name} depends on unknown command {dependency_name}")
-        run_command(dependency, commands_by_name, context, args, completed_commands)
+        for dependency_name in current.dependencies:
+            dependency = commands_by_name.get(dependency_name)
+            if dependency is None:
+                raise RuntimeError(f"Command {current.name} depends on unknown command {dependency_name}")
+            visit(dependency)
 
-    command.run(context, args)
-    completed_commands.add(command.name)
+        ordered.append(current)
+
+    visit(command)
+    return ordered
+
+
+def run_commands(commands: list[Command], context: CommandContext, args: argparse.Namespace) -> None:
+    # Everything is checked before anything runs, so a run that cannot finish
+    # does not get half way first.
+    for command in reversed(commands):
+        command.validate(context, args)
+
+    for command in commands:
+        command.run(context, args)
+
+
+def log_path(context: CommandContext, commands: list[Command]) -> Path | None:
+    """Where this invocation keeps its log, or nowhere when none of the commands
+    about to run asked for one."""
+    if not any(command.wants_log for command in commands):
+        return None
+    return context.log_project_dir() / "yae.log"
 
 
 def main() -> None:
@@ -63,9 +82,10 @@ def main() -> None:
         return
 
     context = CommandContext.from_args(args)
-    configure_logging(verbose=args.verbose, log_path=context.log_project_dir() / "yae.log")
+    plan = execution_list(commands_by_name[args.command], commands_by_name)
+    configure_logging(verbose=args.verbose, log_path=log_path(context, plan))
     try:
-        run_command(commands_by_name[args.command], commands_by_name, context, args, set())
+        run_commands(plan, context, args)
     except YaeError as error:
         # Expected failure: a single clean message, no traceback.
         logger.error("%s", error)

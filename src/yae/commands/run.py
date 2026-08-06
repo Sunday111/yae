@@ -26,6 +26,7 @@ class RunCommand(Command):
     name = "run"
     help = "Run the configured executable"
     dependencies = ("build",)
+    wants_log = True
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         add_project_dir_argument(parser)

@@ -125,6 +125,10 @@ class Command:
     name: str
     help: str
     dependencies: Sequence[str] = ()
+    # Whether a run of this command is worth keeping a log of. Set on the ones
+    # that do real work in a project; a command that only inspects or reports
+    # has nothing worth reading back afterwards.
+    wants_log: bool = False
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         pass
