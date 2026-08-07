@@ -20,6 +20,7 @@ class BuildCommand(Command):
     name = "build"
     help = "Build CMake targets"
     dependencies = ("configure",)
+    wants_log = True
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         add_project_dir_argument(parser)

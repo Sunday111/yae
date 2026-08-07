@@ -24,6 +24,7 @@ class TestCommand(Command):
     # rather than just the default set is what keeps ctest from reporting the
     # registered-but-unbuilt sibling test modules as NOT_BUILT failures.
     dependencies = ("configure",)
+    wants_log = True
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         add_project_dir_argument(parser)
