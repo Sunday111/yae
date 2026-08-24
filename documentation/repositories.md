@@ -54,9 +54,9 @@ Resolution order is `--project_dir` → `YAE_PROJECT_DIR` → current directory.
 
 ### Discovery by target name
 
-`yae run <target>` works with **no** project directory at all, as long as `YAE_CLONED_REPOSITORIES_DIR` points at a
-directory of cloned project checkouts. YAE searches that directory for a checkout that declares an executable module
-named `<target>` and uses it as the project:
+`yae run <target>` and `yae profile <target>` work with **no** project directory at all, as long as
+`YAE_CLONED_REPOSITORIES_DIR` points at a directory of cloned project checkouts. YAE searches that directory for a
+checkout that declares an executable module named `<target>` and uses it as the project:
 
 ```bash
 export YAE_CLONED_REPOSITORIES_DIR=/path/to/shared/repositories

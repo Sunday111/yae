@@ -5,7 +5,7 @@ machine-specific settings in `local-config.json`.
 
 ## `default_configuration`
 
-Committed project defaults, read by `configure`, `build`, and `run`:
+Committed project defaults, read by `configure`, `build`, `run`, and `profile`:
 
 ```json
 {
@@ -23,10 +23,10 @@ Committed project defaults, read by `configure`, `build`, and `run`:
 
 | Key | Used by | Meaning |
 | --- | --- | --- |
-| `build_dir` | configure, build, run, tidy | Build directory (relative paths resolve against the project). Overridable with `--build_dir`. |
+| `build_dir` | configure, build, run, profile, tidy | Build directory (relative paths resolve against the project). Overridable with `--build_dir`. |
 | `generator` | configure | Optional CMake generator (`-G`); defaults to `Ninja`. |
 | `build_targets` | build | Default targets when `yae build` is given none. |
-| `run_target` | run | Default executable for `yae run`. |
+| `run_target` | run, profile | Default executable for `yae run` and `yae profile`. |
 | `cmake_definitions` | configure | `-D<name>=<value>` cache definitions. |
 | `environment` | configure | Environment variables for the configure process. |
 

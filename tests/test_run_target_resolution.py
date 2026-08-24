@@ -6,10 +6,14 @@ from pathlib import Path
 
 import pytest
 
+from yae.cli import create_parser
+from yae.commands import create_commands
 from yae.commands.base import CommandContext
+from yae.commands.build import BuildCommand
 from yae.commands.common import find_cloned_project_dirs
 from yae.commands.common import find_executable_module
 from yae.commands.common import find_project_dir_by_run_target
+from yae.commands.run import RunCommand
 from yae.errors import ProjectError
 from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
@@ -90,6 +94,28 @@ def test_find_executable_module_returns_executable(tmp_path: Path) -> None:
 
     assert module is not None
     assert module.name == "app"
+
+
+def test_run_validation_builds_the_configured_run_target(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project_with_local_support(project_dir)
+    project_config = json.loads((project_dir / "yae_project.json").read_text(encoding="utf-8"))
+    project_config["default_configuration"] = {"run_target": "app", "build_targets": ["applib"]}
+    write_json(project_dir / "yae_project.json", project_config)
+    commands = create_commands()
+    parser = create_parser(commands)
+    args = parser.parse_args(["run", "--project_dir", project_dir.as_posix(), "--", "--example"])
+    command = next(command for command in commands if command.name == "run")
+    assert isinstance(command, RunCommand)
+
+    command.validate(context_for(project_dir), args)
+
+    assert args.run_target == "app"
+    assert args.app_args == ["--example"]
+    assert BuildCommand()._get_targets(args, project_config["default_configuration"]) == ["app"]
+
+    command._normalize_target_and_app_arguments(args)
+    assert args.run_target == "app"
 
 
 def test_find_executable_module_rejects_library(tmp_path: Path) -> None:

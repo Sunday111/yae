@@ -17,9 +17,9 @@ Every command that operates on a project resolves the project directory in this 
 2. `YAE_PROJECT_DIR` environment variable
 3. the current working directory
 
-The resolved directory must contain `yae_project.json`. `yae run <target>` can additionally *discover* a project by
-target name — see [Repositories & running from anywhere](repositories.md). `yae format` is the exception: it accepts
-any directory inside a Git work tree and does not require a YAE project.
+The resolved directory must contain `yae_project.json`. `yae run <target>` and `yae profile <target>` can additionally
+*discover* a project by target name — see [Repositories & running from anywhere](repositories.md). `yae format` is the
+exception: it accepts any directory inside a Git work tree and does not require a YAE project.
 
 The cloned-repositories directory is resolved separately; see
 [Repositories](repositories.md#resolving-the-cloned-repositories-directory).
@@ -30,10 +30,11 @@ Some commands run others first:
 
 ```
 generate  →  configure  →  build  →  run
+                                  ↘ profile
 ```
 
-`configure` runs `generate`, `build` runs `configure`, and `run` runs `build`. So `yae run` from a clean checkout will
-fetch dependencies, generate CMake, configure, build, and launch — in one command.
+`configure` runs `generate`, while `build` runs `configure`. Both `run` and `profile` run `build` first. So `yae run`
+from a clean checkout will fetch dependencies, generate CMake, configure, build, and launch — in one command.
 
 ## Reference
 
@@ -67,6 +68,30 @@ PRIME environment variables) for discrete-GPU offload. Flags: `--project_dir`, `
 
 `run` validates the target before building, so an unknown or non-executable target fails with a clear message instead
 of a cryptic build error.
+
+### `yae profile --output <directory> [target] [-- app args...]` (→ build)
+Build an executable using the project's configured CMake definitions, record it with Linux `perf`, and export the
+samples in the text format accepted by [Speedscope](https://www.speedscope.app). This includes overrides from
+`local-config.json`. Uses `default_configuration.run_target` when no target is provided. Arguments after `--` are
+forwarded to the executable.
+
+The output directory contains a dedicated build by default, `perf.data`, and `profile.linux-perf.txt`. Pass
+`--build_dir` to reuse another build directory. Existing profile files are preserved unless `--overwrite` is passed.
+Flags: `--project_dir`, `--cloned_repositories_dir`, `--build_dir`, `--frequency`, `--event`, `--call-graph`, `--perf`,
+`--output`, and `--overwrite`.
+
+Frame-pointer unwinding is the default and requires a configuration that preserves frame pointers. Use
+`--call-graph dwarf` when profiling an optimized configuration that omits them.
+
+Like `run`, `profile` supports target-based project discovery and NVIDIA PRIME offload. Executables supplied by a
+package still need an explicit consumer project, because more than one project may build the same package target:
+
+```bash
+yae profile --project_dir /path/to/project --output /tmp/profile package_example -- --example-argument
+```
+
+Speedscope processes `profile.linux-perf.txt` locally in the browser. Profiling requires Linux and a `perf` package
+matching the running kernel.
 
 ### `yae list`
 List project modules. See [Project model](project-model.md) for module origins and types.
