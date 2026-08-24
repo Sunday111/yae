@@ -108,6 +108,9 @@ class CommandContext:
     def build_dir_override(self) -> Path | None:
         return self._build_dir_override
 
+    def set_build_dir(self, build_dir: Path) -> None:
+        self._build_dir_override = build_dir.resolve()
+
     def resolve_project(self, project_dir: Path) -> ResolvedProject:
         """Resolves a project once per invocation; repeated calls for the same directory
         (e.g. `run`'s validation and its `generate` dependency) reuse the cached result."""

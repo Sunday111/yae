@@ -3,7 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from collections.abc import Mapping
 from collections.abc import Sequence
+from typing import TextIO
 import os
+import shutil
 import subprocess
 
 from yae import yae_constants
@@ -22,23 +24,38 @@ logger = get_logger(__name__)
 subprocess_logger = get_logger("subprocess")
 
 
+def command_with_discrete_gpu(command: Sequence[str]) -> tuple[list[str], dict[str, str]]:
+    environment = os.environ.copy()
+    if shutil.which("prime-run") is not None:
+        logger.info("Using prime-run for NVIDIA GPU offload")
+        return ["prime-run", *command], environment
+
+    logger.info("Using NVIDIA PRIME environment variables")
+    environment.setdefault("__NV_PRIME_RENDER_OFFLOAD", "1")
+    environment.setdefault("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+    environment.setdefault("__VK_LAYER_NV_optimus", "NVIDIA_only")
+    return list(command), environment
+
+
 def run_subprocess(
     command: Sequence[str],
     *,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
+    stdout: TextIO | None = None,
 ) -> None:
     subprocess_logger.info("$ %s", " ".join(command))
     process = subprocess.Popen(
         command,
         cwd=cwd,
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stdout=stdout if stdout is not None else subprocess.PIPE,
+        stderr=subprocess.PIPE if stdout is not None else subprocess.STDOUT,
         text=True,
     )
-    assert process.stdout is not None
-    for line in process.stdout:
+    process_output = process.stderr if stdout is not None else process.stdout
+    assert process_output is not None
+    for line in process_output:
         subprocess_logger.info("%s", line.rstrip())
 
     return_code = process.wait()
