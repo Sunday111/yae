@@ -17,6 +17,7 @@ from yae.module import ModuleType
 from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
 from yae.settings import ResolvedSettings
+from yae.toolchain import generate_toolchain_file
 from yae.yae_logging import get_logger
 
 
@@ -191,6 +192,7 @@ def run_cmake_configure(
     extra_cmake_args: list[str],
 ) -> None:
     default_configuration = get_default_configuration(project_dir)
+    settings = ResolvedSettings.from_project(project_dir, cloned_repositories_dir)
     build_dir = get_build_dir(project_dir, build_dir_override)
     logger.info("Configuring CMake project in %s", build_dir)
 
@@ -216,8 +218,33 @@ def run_cmake_configure(
         if linker_type is not None:
             definitions["CMAKE_LINKER_TYPE"] = linker_type
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
-    settings = ResolvedSettings.from_project(project_dir, cloned_repositories_dir)
+    toolchain_file: Path | None = None
+    if "yae-toolchain" in default_configuration:
+        toolchain_configuration = default_configuration["yae-toolchain"]
+        if "CMAKE_TOOLCHAIN_FILE" in definitions or any(
+            arg.startswith("-DCMAKE_TOOLCHAIN_FILE=") for arg in extra_cmake_args
+        ):
+            raise ProjectError("yae-toolchain cannot be combined with CMAKE_TOOLCHAIN_FILE")
+        toolchain_file = generate_toolchain_file(toolchain_configuration, settings.cloned_repositories_dir)
+        command.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file.as_posix()}")
+    _validate_cached_yae_toolchain(build_dir, toolchain_file)
     command.append(f"-DYAE_CLONED_REPOSITORIES_DIR={settings.cloned_repositories_dir.as_posix()}")
     command.extend(extra_cmake_args)
 
     run_subprocess(command, env=environment)
+
+
+def _validate_cached_yae_toolchain(build_dir: Path, toolchain_file: Path | None) -> None:
+    cache_file = build_dir / "CMakeCache.txt"
+    if not cache_file.is_file():
+        return
+
+    cached_toolchain_id: str | None = None
+    for line in cache_file.read_text(encoding="utf-8").splitlines():
+        if line.startswith("YAE_TOOLCHAIN_ID:INTERNAL="):
+            cached_toolchain_id = line.partition("=")[2]
+            break
+
+    requested_toolchain_id = toolchain_file.stem if toolchain_file is not None else None
+    if cached_toolchain_id != requested_toolchain_id:
+        raise ProjectError("yae-toolchain changed; configure a fresh build directory")

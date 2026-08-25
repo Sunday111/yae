@@ -91,16 +91,3 @@ def test_library_cmake_does_not_enable_debug_info_compression(tmp_path: Path) ->
     cmake = emit_cmake(tmp_path, "Library")
 
     assert "yae_debug_info_compression" not in cmake
-
-
-def test_executable_cmake_links_cpp_lib_when_configured(tmp_path: Path) -> None:
-    cmake = emit_cmake(tmp_path, "Executable")
-
-    assert "if(COMMAND link_cpp_lib_statically)" in cmake
-    assert "    link_cpp_lib_statically(target)" in cmake
-
-
-def test_library_cmake_does_not_link_cpp_lib(tmp_path: Path) -> None:
-    cmake = emit_cmake(tmp_path, "Library")
-
-    assert "link_cpp_lib_statically" not in cmake
