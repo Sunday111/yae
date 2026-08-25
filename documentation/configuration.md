@@ -15,6 +15,7 @@ Committed project defaults, read by `configure`, `build`, `run`, and `profile`:
         "run_target": "verlet_cuda",
         "yae-toolchain": {
             "compiler": "clang",
+            "linker": "mold",
             "cpplib": "llvm-static"
         },
         "cmake_definitions": {
@@ -30,39 +31,41 @@ Committed project defaults, read by `configure`, `build`, `run`, and `profile`:
 | `generator` | configure | Optional CMake generator (`-G`); defaults to `Ninja`. |
 | `build_targets` | build | Default targets when `yae build` is given none. |
 | `run_target` | run, profile | Default executable for `yae run` and `yae profile`. |
-| `linker` | configure | Exact linker to use: mold, LLVM LLD, or GNU `ld`. Accepts `mold`, `lld`, or `ld`. |
 | `cmake_definitions` | configure | `-D<name>=<value>` cache definitions. |
 | `environment` | configure | Environment variables for the configure process. |
-| `yae-toolchain` | configure | Optional YAE-generated CMake toolchain; see below. |
+| `yae-toolchain` | configure | Override the default YAE-generated CMake toolchain; see below. |
 
 YAE enables `CMAKE_EXPORT_COMPILE_COMMANDS` by default. Set it to `OFF` in `cmake_definitions` to disable it.
-
-When `linker` is omitted, YAE selects the first linker available in this order: mold, LLD, then GNU `ld`.
-`local-config.json` can override a project's linker like any other default configuration value.
 
 **Value substitution:** `${project_dir}` in a value is replaced with the project's absolute path.
 
 ## YAE toolchains
 
-`yae-toolchain` selects a compiler and, optionally, a statically linked C++ standard library:
+`yae-toolchain` selects a compiler, linker, and optionally a statically linked C++ standard library:
 
 ```json
 {
     "yae-toolchain": {
         "compiler": "clang",
+        "linker": "mold",
         "cpplib": "llvm-static"
     }
 }
 ```
 
-`compiler` accepts `clang` or an exact version such as `clang-22`. For `clang`, YAE first uses an unversioned
-`clang`/`clang++` pair. If either is unavailable, it selects the highest installed matching versioned pair.
+`compiler` accepts `clang`, `gcc`, or an exact version such as `clang-22` or `gcc-15`. For an unversioned compiler,
+YAE first uses the corresponding unversioned C/C++ pair. If either is unavailable, it selects the highest installed
+matching versioned pair. `linker` accepts `mold`, `lld`, or `ld`.
 
 `cpplib` accepts `llvm-static` for static libc++ and libc++abi, or `gcc-static` for static libstdc++. When omitted,
-the compiler's default C++ standard library is used. YAE stores generated toolchain files under
-`<cloned_repositories_dir>/.yae/toolchains` and passes the selected file to CMake. Toolchain settings therefore do
-not affect committed generated `CMakeLists.txt` files. Adding, removing, or changing `yae-toolchain` requires a fresh
-build directory because CMake fixes its toolchain while initializing a build tree.
+the compiler's default C++ standard library is used; GCC therefore uses dynamically linked libstdc++ by default.
+Static standard-library overrides require Clang. When `yae-toolchain` is omitted, YAE uses its shipped
+`default_toolchain.json`, which selects GCC, dynamic libstdc++, and GNU `ld`.
+
+YAE stores generated toolchain files under `<cloned_repositories_dir>/.yae/toolchains` and passes the selected file to
+CMake. Toolchain settings therefore do not affect committed generated `CMakeLists.txt` files. Adding, removing, or
+changing `yae-toolchain` requires a fresh build directory because CMake fixes its toolchain while initializing a build
+tree. An explicit `CMAKE_TOOLCHAIN_FILE` bypasses the shipped default and cannot be combined with `yae-toolchain`.
 
 ## `local-config.json`
 
