@@ -18,39 +18,12 @@ from yae.resolver import ResolvedProject
 from yae.resolver import resolve_project
 from yae.settings import ResolvedSettings
 from yae.toolchain import generate_toolchain_file
+from yae.toolchain import read_default_toolchain_configuration
 from yae.yae_logging import get_logger
 
 
 logger = get_logger(__name__)
 subprocess_logger = get_logger("subprocess")
-
-LINKER_TYPES = {
-    "mold": "MOLD",
-    "lld": "LLD",
-    "ld": "BFD",
-}
-
-LINKER_CANDIDATES = (
-    ("mold", "mold"),
-    ("ld.lld", "lld"),
-    ("ld", "ld"),
-)
-
-
-def resolve_linker_type(linker: object) -> str:
-    linker_name = str(linker).lower()
-    if linker_name not in LINKER_TYPES:
-        supported_linkers = ", ".join(LINKER_TYPES)
-        raise ProjectError(f"Unknown linker '{linker}'. Expected one of: {supported_linkers}")
-    return LINKER_TYPES[linker_name]
-
-
-def find_preferred_linker_type() -> str | None:
-    for executable, linker_name in LINKER_CANDIDATES:
-        if shutil.which(executable) is not None:
-            return resolve_linker_type(linker_name)
-    return None
-
 
 def command_with_discrete_gpu(command: Sequence[str]) -> tuple[list[str], dict[str, str]]:
     environment = os.environ.copy()
@@ -208,23 +181,20 @@ def run_cmake_configure(
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
     definitions.setdefault("CMAKE_EXPORT_COMPILE_COMMANDS", "ON")
-    has_cli_linker_type = any(arg.startswith("-DCMAKE_LINKER_TYPE=") for arg in extra_cmake_args)
-    if "CMAKE_LINKER_TYPE" not in definitions and not has_cli_linker_type:
-        configured_linker = default_configuration.get("linker")
-        if configured_linker is not None:
-            linker_type = resolve_linker_type(configured_linker)
-        else:
-            linker_type = find_preferred_linker_type()
-        if linker_type is not None:
-            definitions["CMAKE_LINKER_TYPE"] = linker_type
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
     toolchain_file: Path | None = None
-    if "yae-toolchain" in default_configuration:
-        toolchain_configuration = default_configuration["yae-toolchain"]
-        if "CMAKE_TOOLCHAIN_FILE" in definitions or any(
-            arg.startswith("-DCMAKE_TOOLCHAIN_FILE=") for arg in extra_cmake_args
-        ):
+    has_cmake_toolchain = "CMAKE_TOOLCHAIN_FILE" in definitions or any(
+        arg.startswith("-DCMAKE_TOOLCHAIN_FILE=") for arg in extra_cmake_args
+    )
+    if has_cmake_toolchain:
+        if "yae-toolchain" in default_configuration:
             raise ProjectError("yae-toolchain cannot be combined with CMAKE_TOOLCHAIN_FILE")
+    else:
+        toolchain_configuration = (
+            default_configuration["yae-toolchain"]
+            if "yae-toolchain" in default_configuration
+            else read_default_toolchain_configuration()
+        )
         toolchain_file = generate_toolchain_file(toolchain_configuration, settings.cloned_repositories_dir)
         command.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain_file.as_posix()}")
     _validate_cached_yae_toolchain(build_dir, toolchain_file)

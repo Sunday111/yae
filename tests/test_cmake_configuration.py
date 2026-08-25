@@ -48,38 +48,6 @@ def capture_configure_command(
     return captured["command"]
 
 
-def test_preferred_linker_type_uses_available_linkers_in_priority_order(monkeypatch) -> None:
-    available_linkers = {"ld.lld", "ld"}
-    checked_linkers: list[str] = []
-
-    def find_executable(executable: str) -> str | None:
-        checked_linkers.append(executable)
-        return f"/usr/bin/{executable}" if executable in available_linkers else None
-
-    monkeypatch.setattr(common.shutil, "which", find_executable)
-
-    assert common.find_preferred_linker_type() == "LLD"
-    assert checked_linkers == ["mold", "ld.lld"]
-
-
-def test_preferred_linker_type_prefers_mold(monkeypatch) -> None:
-    monkeypatch.setattr(common.shutil, "which", lambda executable: f"/usr/bin/{executable}")
-
-    assert common.find_preferred_linker_type() == "MOLD"
-
-
-def test_preferred_linker_type_falls_back_to_gnu_linker(monkeypatch) -> None:
-    monkeypatch.setattr(common.shutil, "which", lambda executable: "/usr/bin/ld" if executable == "ld" else None)
-
-    assert common.find_preferred_linker_type() == "BFD"
-
-
-def test_preferred_linker_type_is_unset_without_an_available_linker(monkeypatch) -> None:
-    monkeypatch.setattr(common.shutil, "which", lambda executable: None)
-
-    assert common.find_preferred_linker_type() is None
-
-
 def test_generated_cmake_cloned_repositories_dir_default_is_project_local(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     write_project(project_dir)
@@ -170,46 +138,22 @@ def test_configure_honors_generator_and_compile_commands_overrides(tmp_path: Pat
     assert "-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF" in captured["command"]
 
 
-def test_configure_honors_linker_type_override(tmp_path: Path, monkeypatch) -> None:
+def test_configure_uses_default_toolchain_when_none_is_configured(tmp_path: Path, monkeypatch) -> None:
     project_dir = tmp_path / "project"
+    shared_repositories = tmp_path / "shared-repositories"
     write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["cmake_definitions"]["CMAKE_LINKER_TYPE"] = "LLD"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-    monkeypatch.setattr(common, "find_preferred_linker_type", lambda: "MOLD")
+    generated_toolchain = shared_repositories / ".yae" / "toolchains" / "default.cmake"
+    captured: dict[str, object] = {}
+
+    def generate(configuration: object, storage_dir: Path) -> Path:
+        captured["configuration"] = configuration
+        return generated_toolchain
+
+    monkeypatch.setattr(common, "generate_toolchain_file", generate)
     command = capture_configure_command(project_dir, monkeypatch)
 
-    assert "-DCMAKE_LINKER_TYPE=LLD" in command
-    assert "-DCMAKE_LINKER_TYPE=MOLD" not in command
-
-
-def test_configure_honors_project_linker(tmp_path: Path, monkeypatch) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["linker"] = "lld"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-    monkeypatch.setattr(common, "find_preferred_linker_type", lambda: "MOLD")
-    command = capture_configure_command(project_dir, monkeypatch)
-
-    assert "-DCMAKE_LINKER_TYPE=LLD" in command
-    assert "-DCMAKE_LINKER_TYPE=MOLD" not in command
-
-
-def test_configure_honors_local_linker_override(tmp_path: Path, monkeypatch) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["linker"] = "mold"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-    (project_dir / "local-config.json").write_text(json.dumps({"linker": "ld"}), encoding="utf-8")
-    command = capture_configure_command(project_dir, monkeypatch)
-
-    assert "-DCMAKE_LINKER_TYPE=BFD" in command
-    assert "-DCMAKE_LINKER_TYPE=MOLD" not in command
+    assert captured["configuration"] == {"compiler": "gcc", "linker": "ld"}
+    assert f"-DCMAKE_TOOLCHAIN_FILE={generated_toolchain.as_posix()}" in command
 
 
 def test_configure_generates_toolchain_from_merged_local_configuration(tmp_path: Path, monkeypatch) -> None:
@@ -220,6 +164,7 @@ def test_configure_generates_toolchain_from_merged_local_configuration(tmp_path:
     project = json.loads(project_file.read_text(encoding="utf-8"))
     project["default_configuration"]["yae-toolchain"] = {
         "compiler": "clang",
+        "linker": "mold",
         "cpplib": "gcc-static",
     }
     project_file.write_text(json.dumps(project), encoding="utf-8")
@@ -238,7 +183,7 @@ def test_configure_generates_toolchain_from_merged_local_configuration(tmp_path:
     monkeypatch.setattr(common, "generate_toolchain_file", generate)
     command = capture_configure_command(project_dir, monkeypatch)
 
-    assert captured["configuration"] == {"compiler": "clang", "cpplib": "llvm-static"}
+    assert captured["configuration"] == {"compiler": "clang", "linker": "mold", "cpplib": "llvm-static"}
     assert captured["storage_dir"] == shared_repositories
     assert f"-DCMAKE_TOOLCHAIN_FILE={generated_toolchain.as_posix()}" in command
 
@@ -248,11 +193,24 @@ def test_configure_rejects_second_toolchain_file(tmp_path: Path, monkeypatch) ->
     write_project(project_dir)
     project_file = project_dir / "yae_project.json"
     project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang"}
+    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang", "linker": "mold"}
     project_file.write_text(json.dumps(project), encoding="utf-8")
 
     with pytest.raises(ProjectError, match="yae-toolchain cannot be combined with CMAKE_TOOLCHAIN_FILE"):
         capture_configure_command(project_dir, monkeypatch, ["-DCMAKE_TOOLCHAIN_FILE=custom.cmake"])
+
+
+def test_configure_uses_custom_cmake_toolchain_instead_of_default(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+
+    def unexpected_generate(configuration: object, storage_dir: Path) -> Path:
+        raise AssertionError("YAE toolchain generation should be bypassed")
+
+    monkeypatch.setattr(common, "generate_toolchain_file", unexpected_generate)
+    command = capture_configure_command(project_dir, monkeypatch, ["-DCMAKE_TOOLCHAIN_FILE=custom.cmake"])
+
+    assert command.count("-DCMAKE_TOOLCHAIN_FILE=custom.cmake") == 1
 
 
 def test_configure_rejects_toolchain_change_in_existing_build(tmp_path: Path, monkeypatch) -> None:
@@ -260,7 +218,7 @@ def test_configure_rejects_toolchain_change_in_existing_build(tmp_path: Path, mo
     write_project(project_dir)
     project_file = project_dir / "yae_project.json"
     project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang"}
+    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang", "linker": "mold"}
     project_file.write_text(json.dumps(project), encoding="utf-8")
     build_dir = project_dir / "build"
     build_dir.mkdir()
@@ -278,7 +236,7 @@ def test_configure_rejects_toolchain_change_in_existing_build(tmp_path: Path, mo
         capture_configure_command(project_dir, monkeypatch)
 
 
-def test_configure_rejects_removing_toolchain_from_existing_build(tmp_path: Path, monkeypatch) -> None:
+def test_configure_rejects_changing_to_default_toolchain_in_existing_build(tmp_path: Path, monkeypatch) -> None:
     project_dir = tmp_path / "project"
     write_project(project_dir)
     build_dir = project_dir / "build"
@@ -290,33 +248,6 @@ def test_configure_rejects_removing_toolchain_from_existing_build(tmp_path: Path
 
     with pytest.raises(ProjectError, match="yae-toolchain changed; configure a fresh build directory"):
         capture_configure_command(project_dir, monkeypatch)
-
-
-def test_configure_rejects_unknown_linker(tmp_path: Path) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["default_configuration"]["linker"] = "gold"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-
-    with pytest.raises(ProjectError, match="Unknown linker 'gold'. Expected one of: mold, lld, ld"):
-        common.run_cmake_configure(
-            project_dir=project_dir,
-            cloned_repositories_dir=tmp_path / "shared-repositories",
-            build_dir_override=None,
-            extra_cmake_args=[],
-        )
-
-
-def test_configure_honors_cli_linker_type_override(tmp_path: Path, monkeypatch) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    monkeypatch.setattr(common, "find_preferred_linker_type", lambda: "MOLD")
-    command = capture_configure_command(project_dir, monkeypatch, ["-DCMAKE_LINKER_TYPE=LLD"])
-
-    assert command.count("-DCMAKE_LINKER_TYPE=LLD") == 1
-    assert "-DCMAKE_LINKER_TYPE=MOLD" not in command
 
 
 def test_configure_honors_cli_generator_override(tmp_path: Path, monkeypatch) -> None:
