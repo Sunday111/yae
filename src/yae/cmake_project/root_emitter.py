@@ -49,9 +49,9 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
     gen.line()
     gen.line()
 
-    if ctx.project_config.cpp_lib is not None:
-        gen.include("yae_cpp_lib")
-        gen.line(f"configure_cpp_lib({ctx.project_config.cpp_lib})")
+    if ctx.project_config.required_cxxlib is not None:
+        gen.include("yae_cxxlib")
+        gen.line(f"configure_required_cxxlib({ctx.project_config.required_cxxlib})")
 
     if ctx.project_config.enable_lto_globally is not None:
         gen.include("yae_lto")
@@ -104,6 +104,13 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         for extra_cmake in module.extra_cmake_files:
             module_root = path_resolver.source_path(module.root_dir, prefer_project_root=prefer_project_root)
             gen.include(f"{module_root}/{extra_cmake}.cmake")
+
+    if ctx.project_config.required_cxxlib is not None:
+        gen.line()
+        for module_name in module_registry.topological_sort():
+            module = module_registry.find(module_name)
+            if module is not None and module.module_type == ModuleType.EXECUTABLE:
+                gen.line(f"link_required_cxxlib({module.cmake_target_name})")
 
     gen.line()
     gen.line("enable_testing()")

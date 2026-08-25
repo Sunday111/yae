@@ -91,28 +91,40 @@ def test_generated_cmake_cloned_repositories_dir_default_is_project_local(tmp_pa
     )
 
 
-def test_project_accepts_static_cpp_lib(tmp_path: Path) -> None:
+def test_project_accepts_required_cxxlib(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     write_project(project_dir)
     project_file = project_dir / "yae_project.json"
     project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["cpp-lib"] = "llvm-static"
+    project["require_cxxlib"] = "llvm-static"
     project_file.write_text(json.dumps(project), encoding="utf-8")
 
     context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
 
-    assert context.project_config.cpp_lib == "llvm-static"
+    assert context.project_config.required_cxxlib == "llvm-static"
 
 
-def test_project_rejects_unknown_cpp_lib(tmp_path: Path) -> None:
+def test_project_does_not_require_cxxlib_by_default(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+
+    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
+
+    assert context.project_config.required_cxxlib is None
+
+
+def test_project_rejects_unknown_required_cxxlib(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     write_project(project_dir)
     project_file = project_dir / "yae_project.json"
     project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["cpp-lib"] = "static"
+    project["require_cxxlib"] = "static"
     project_file.write_text(json.dumps(project), encoding="utf-8")
 
-    with pytest.raises(ProjectError, match="Unknown cpp-lib 'static'. Expected one of: llvm-static, gcc-static"):
+    with pytest.raises(
+        ProjectError,
+        match="Unknown require_cxxlib 'static'. Expected one of: llvm-static, gcc-static",
+    ):
         GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
 
 

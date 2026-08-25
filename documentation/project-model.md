@@ -14,7 +14,7 @@ The project root file.
 {
     "name": "verlet_cuda",
     "cpp": { "standard": "20" },
-    "cpp-lib": "llvm-static",
+    "require_cxxlib": "llvm-static",
     "enable_lto_globally": true,
     "yae_support": { "link": "https://github.com/Sunday111/yae-support main" },
     "default_configuration": {
@@ -30,7 +30,7 @@ The project root file.
 | --- | --- |
 | `name` | CMake project name. |
 | `cpp.standard` | C++ standard (e.g. `"20"`). |
-| `cpp-lib` | Optional. Select and statically link the C++ runtime in executables: `"llvm-static"` for libc++/libc++abi or `"gcc-static"` for libstdc++. |
+| `require_cxxlib` | Optional. Select and statically link the C++ runtime in executables: `"llvm-static"` for libc++/libc++abi or `"gcc-static"` for libstdc++. |
 | `enable_lto_globally` | Optional. Enable/disable link-time optimization for the whole project. |
 | `yae_support` | Optional. Pin the support package — see [Configuration](configuration.md#pinning-the-support-package). |
 | `default_configuration` | Build/configure defaults — see [Configuration](configuration.md). |
