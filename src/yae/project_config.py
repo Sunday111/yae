@@ -5,14 +5,12 @@ from typing import Generator
 
 from yae import json_utils
 from yae import yae_constants
-from yae.errors import ProjectError
 from yae.github_link import GitHubLink
 from yae.package import Package
 from yae.settings import ResolvedSettings
 
 
 DEFAULT_YAE_SUPPORT_LINK = "https://github.com/Sunday111/yae-support main"
-CPP_LIBS = ("llvm-static", "gcc-static")
 
 
 class ProjectConfig:
@@ -23,10 +21,6 @@ class ProjectConfig:
         json = json_utils.read_json_file(self.config_file_path)
         self.name = json["name"]
         self.cpp_standard = json["cpp"]["standard"]
-        self.cpp_lib: str | None = json.get("cpp-lib")
-        if self.cpp_lib is not None and self.cpp_lib not in CPP_LIBS:
-            expected = ", ".join(CPP_LIBS)
-            raise ProjectError(f"Unknown cpp-lib '{self.cpp_lib}'. Expected one of: {expected}")
         self.enable_lto_globally: bool | None = json.get("enable_lto_globally", None)
         self.yae_support_link = self.__read_yae_support_link(json)
         self.__packages = list(self.__glob_local_packages())

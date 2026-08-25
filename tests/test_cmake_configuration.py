@@ -91,31 +91,6 @@ def test_generated_cmake_cloned_repositories_dir_default_is_project_local(tmp_pa
     )
 
 
-def test_project_accepts_static_cpp_lib(tmp_path: Path) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["cpp-lib"] = "llvm-static"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-
-    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
-
-    assert context.project_config.cpp_lib == "llvm-static"
-
-
-def test_project_rejects_unknown_cpp_lib(tmp_path: Path) -> None:
-    project_dir = tmp_path / "project"
-    write_project(project_dir)
-    project_file = project_dir / "yae_project.json"
-    project = json.loads(project_file.read_text(encoding="utf-8"))
-    project["cpp-lib"] = "static"
-    project_file.write_text(json.dumps(project), encoding="utf-8")
-
-    with pytest.raises(ProjectError, match="Unknown cpp-lib 'static'. Expected one of: llvm-static, gcc-static"):
-        GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
-
-
 def test_project_local_cloned_repositories_override_uses_cmake_variable(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     cloned_repositories_dir = project_dir / "shared"
@@ -235,6 +210,86 @@ def test_configure_honors_local_linker_override(tmp_path: Path, monkeypatch) -> 
 
     assert "-DCMAKE_LINKER_TYPE=BFD" in command
     assert "-DCMAKE_LINKER_TYPE=MOLD" not in command
+
+
+def test_configure_generates_toolchain_from_merged_local_configuration(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    shared_repositories = tmp_path / "shared-repositories"
+    write_project(project_dir)
+    project_file = project_dir / "yae_project.json"
+    project = json.loads(project_file.read_text(encoding="utf-8"))
+    project["default_configuration"]["yae-toolchain"] = {
+        "compiler": "clang",
+        "cpplib": "gcc-static",
+    }
+    project_file.write_text(json.dumps(project), encoding="utf-8")
+    (project_dir / "local-config.json").write_text(
+        json.dumps({"yae-toolchain": {"cpplib": "llvm-static"}}),
+        encoding="utf-8",
+    )
+    generated_toolchain = shared_repositories / ".yae" / "toolchains" / "toolchain.cmake"
+    captured: dict[str, object] = {}
+
+    def generate(configuration: object, storage_dir: Path) -> Path:
+        captured["configuration"] = configuration
+        captured["storage_dir"] = storage_dir
+        return generated_toolchain
+
+    monkeypatch.setattr(common, "generate_toolchain_file", generate)
+    command = capture_configure_command(project_dir, monkeypatch)
+
+    assert captured["configuration"] == {"compiler": "clang", "cpplib": "llvm-static"}
+    assert captured["storage_dir"] == shared_repositories
+    assert f"-DCMAKE_TOOLCHAIN_FILE={generated_toolchain.as_posix()}" in command
+
+
+def test_configure_rejects_second_toolchain_file(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    project_file = project_dir / "yae_project.json"
+    project = json.loads(project_file.read_text(encoding="utf-8"))
+    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang"}
+    project_file.write_text(json.dumps(project), encoding="utf-8")
+
+    with pytest.raises(ProjectError, match="yae-toolchain cannot be combined with CMAKE_TOOLCHAIN_FILE"):
+        capture_configure_command(project_dir, monkeypatch, ["-DCMAKE_TOOLCHAIN_FILE=custom.cmake"])
+
+
+def test_configure_rejects_toolchain_change_in_existing_build(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    project_file = project_dir / "yae_project.json"
+    project = json.loads(project_file.read_text(encoding="utf-8"))
+    project["default_configuration"]["yae-toolchain"] = {"compiler": "clang"}
+    project_file.write_text(json.dumps(project), encoding="utf-8")
+    build_dir = project_dir / "build"
+    build_dir.mkdir()
+    (build_dir / "CMakeCache.txt").write_text(
+        "YAE_TOOLCHAIN_ID:INTERNAL=old-toolchain\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        common,
+        "generate_toolchain_file",
+        lambda configuration, storage_dir: storage_dir / ".yae" / "toolchains" / "new-toolchain.cmake",
+    )
+
+    with pytest.raises(ProjectError, match="yae-toolchain changed; configure a fresh build directory"):
+        capture_configure_command(project_dir, monkeypatch)
+
+
+def test_configure_rejects_removing_toolchain_from_existing_build(tmp_path: Path, monkeypatch) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    build_dir = project_dir / "build"
+    build_dir.mkdir()
+    (build_dir / "CMakeCache.txt").write_text(
+        "YAE_TOOLCHAIN_ID:INTERNAL=configured-toolchain\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ProjectError, match="yae-toolchain changed; configure a fresh build directory"):
+        capture_configure_command(project_dir, monkeypatch)
 
 
 def test_configure_rejects_unknown_linker(tmp_path: Path) -> None:
