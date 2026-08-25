@@ -27,10 +27,14 @@ Committed project defaults, read by `configure`, `build`, `run`, and `profile`:
 | `generator` | configure | Optional CMake generator (`-G`); defaults to `Ninja`. |
 | `build_targets` | build | Default targets when `yae build` is given none. |
 | `run_target` | run, profile | Default executable for `yae run` and `yae profile`. |
+| `linker` | configure | Exact linker to use: mold, LLVM LLD, or GNU `ld`. Accepts `mold`, `lld`, or `ld`. |
 | `cmake_definitions` | configure | `-D<name>=<value>` cache definitions. |
 | `environment` | configure | Environment variables for the configure process. |
 
 YAE enables `CMAKE_EXPORT_COMPILE_COMMANDS` by default. Set it to `OFF` in `cmake_definitions` to disable it.
+
+When `linker` is omitted, YAE selects the first linker available in this order: mold, LLD, then GNU `ld`.
+`local-config.json` can override a project's linker like any other default configuration value.
 
 **Value substitution:** `${project_dir}` in a value is replaced with the project's absolute path.
 

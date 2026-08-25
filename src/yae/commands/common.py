@@ -23,6 +23,33 @@ from yae.yae_logging import get_logger
 logger = get_logger(__name__)
 subprocess_logger = get_logger("subprocess")
 
+LINKER_TYPES = {
+    "mold": "MOLD",
+    "lld": "LLD",
+    "ld": "BFD",
+}
+
+LINKER_CANDIDATES = (
+    ("mold", "mold"),
+    ("ld.lld", "lld"),
+    ("ld", "ld"),
+)
+
+
+def resolve_linker_type(linker: object) -> str:
+    linker_name = str(linker).lower()
+    if linker_name not in LINKER_TYPES:
+        supported_linkers = ", ".join(LINKER_TYPES)
+        raise ProjectError(f"Unknown linker '{linker}'. Expected one of: {supported_linkers}")
+    return LINKER_TYPES[linker_name]
+
+
+def find_preferred_linker_type() -> str | None:
+    for executable, linker_name in LINKER_CANDIDATES:
+        if shutil.which(executable) is not None:
+            return resolve_linker_type(linker_name)
+    return None
+
 
 def command_with_discrete_gpu(command: Sequence[str]) -> tuple[list[str], dict[str, str]]:
     environment = os.environ.copy()
@@ -179,6 +206,15 @@ def run_cmake_configure(
 
     definitions = dict(default_configuration.get("cmake_definitions", {}))
     definitions.setdefault("CMAKE_EXPORT_COMPILE_COMMANDS", "ON")
+    has_cli_linker_type = any(arg.startswith("-DCMAKE_LINKER_TYPE=") for arg in extra_cmake_args)
+    if "CMAKE_LINKER_TYPE" not in definitions and not has_cli_linker_type:
+        configured_linker = default_configuration.get("linker")
+        if configured_linker is not None:
+            linker_type = resolve_linker_type(configured_linker)
+        else:
+            linker_type = find_preferred_linker_type()
+        if linker_type is not None:
+            definitions["CMAKE_LINKER_TYPE"] = linker_type
     command.extend(f"-D{name}={resolve_config_value(project_dir, value)}" for name, value in definitions.items())
     settings = ResolvedSettings.from_project(project_dir, cloned_repositories_dir)
     command.append(f"-DYAE_CLONED_REPOSITORIES_DIR={settings.cloned_repositories_dir.as_posix()}")
