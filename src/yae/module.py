@@ -64,6 +64,7 @@ class Module:
         self.__cmake_add_subdirectory = json.get("CMakeAddSubdirectory", True)
         self.__generate_cmake_file = json.get("GenerateCMakeFile", True)
         self.__enable_lto: bool | None = json.get("EnableLTO", None)
+        self.__compress_debug_info: bool = json.get("CompressDebugInfo", True)
         self.__extra_cmake_files: list[str] = json.get("ExtraCMakeFiles", [])
 
         if self.module_type == ModuleType.GITCLONE:
@@ -236,6 +237,10 @@ class Module:
     @property
     def specifies_lto(self) -> bool:
         return not (self.enable_lto is None)
+
+    @property
+    def compress_debug_info(self) -> bool:
+        return self.__compress_debug_info
 
     @classmethod
     def glob_files_in(cls, root: Path) -> Iterable[Path]:

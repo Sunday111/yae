@@ -88,6 +88,7 @@ A module is a library, executable, or git-cloned dependency. The file name (minu
 | `TargetName` | library, executable | Override the CMake target name (defaults to the module name). |
 | `EnableTesting` | library, executable | Enable CTest / GoogleTest discovery for the target. |
 | `EnableLTO` | library, executable | Force LTO on/off for this target. |
+| `CompressDebugInfo` | executable | Compress debug information in the linked executable. Defaults to `true`; prefers zstd and falls back to zlib when supported by the linker. |
 | `CMakeOptions` | any | CMake `option()`s set before adding the module. |
 
 ### Copying directories after build
