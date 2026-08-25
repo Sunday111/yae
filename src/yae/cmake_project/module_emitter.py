@@ -89,6 +89,10 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
 
         if module.module_type == ModuleType.EXECUTABLE and module.compress_debug_info:
             gen.line(f"enable_debug_info_compression_for({module.name})")
+        if module.module_type == ModuleType.EXECUTABLE:
+            gen.line("if(COMMAND link_cpp_lib_statically)")
+            gen.line(f"    link_cpp_lib_statically({module.name})")
+            gen.line("endif()")
 
         for extra_cmake in module.extra_cmake_files:
             gen.include(f"${{CMAKE_CURRENT_SOURCE_DIR}}/{extra_cmake}.cmake")

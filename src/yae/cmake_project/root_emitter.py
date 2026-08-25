@@ -49,6 +49,10 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
     gen.line()
     gen.line()
 
+    if ctx.project_config.cpp_lib is not None:
+        gen.include("yae_cpp_lib")
+        gen.line(f"configure_cpp_lib({ctx.project_config.cpp_lib})")
+
     if ctx.project_config.enable_lto_globally is not None:
         gen.include("yae_lto")
         gen.line("enable_lto_globally()" if ctx.project_config.enable_lto_globally else "disable_lto_globally()")
