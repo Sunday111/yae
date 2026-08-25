@@ -56,6 +56,8 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
         gen.include("set_compiler_options")
         if module.specifies_lto:
             gen.include("yae_lto")
+        if module.module_type == ModuleType.EXECUTABLE and module.compress_debug_info:
+            gen.include("yae_debug_info_compression")
 
         src_var_name = "module_source_files"
         gen.make_paths_list_variable(src_var_name, rel_sources)
@@ -84,6 +86,9 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
         gen.target_link_libraries(module.name, private_access, _to_cmake_modules(module.private_dependencies, module_registry))
         gen.target_include_directories(module.name, public_access, [Path("code/public")])
         gen.target_include_directories(module.name, private_access, [Path("code/private")])
+
+        if module.module_type == ModuleType.EXECUTABLE and module.compress_debug_info:
+            gen.line(f"enable_debug_info_compression_for({module.name})")
 
         for extra_cmake in module.extra_cmake_files:
             gen.include(f"${{CMAKE_CURRENT_SOURCE_DIR}}/{extra_cmake}.cmake")
