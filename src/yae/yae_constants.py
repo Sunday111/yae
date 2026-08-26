@@ -1,5 +1,7 @@
 # File names and layout constants used across YAE and the CMake it generates.
 
+CMAKE_MINIMUM_VERSION = (3, 29)
+
 PACKAGE_EXT = ".package.json"
 MODULE_EXT = ".module.json"
 

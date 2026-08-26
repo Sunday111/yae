@@ -18,6 +18,8 @@ from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
 from yae.settings import ResolvedSettings
 
+SUPPORT_ROOT_ENV = "YAE_SUPPORT_ROOT"
+
 
 def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)
@@ -56,29 +58,36 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=4), encoding="utf-8")
 
 
-def drop_support_checkout(fixture_dir: Path, cloned_repositories_dir: Path) -> None:
-    """Removes the cached yae-support checkout so the run fetches it again.
-
-    Fetched checkouts are reused and never updated, which is what you want for a pinned
-    dependency. The support package is not one: it ships the cmake and scripts generated
-    projects build with, and it moves with yae. Left alone, a run would build against
-    whatever an earlier run happened to fetch, and fail - or worse, pass - for reasons
-    that have nothing to do with the code under test.
-    """
+def prepare_support_checkout(fixture_dir: Path, cloned_repositories_dir: Path) -> None:
+    """Refreshes the support checkout or uses the one selected for integration."""
 
     project = json.loads((fixture_dir / yae_constants.PROJECT_CONFIG_FILE_NAME).read_text(encoding="utf-8"))
     yae_support = project.get("yae_support", {})
     link = yae_support if isinstance(yae_support, str) else yae_support.get("link", DEFAULT_YAE_SUPPORT_LINK)
 
     checkout = cloned_repositories_dir / GitHubLink.parse(link).subdir
-    if checkout.is_dir():
+    if checkout.is_symlink():
+        checkout.unlink()
+    elif checkout.is_dir():
         shutil.rmtree(checkout)
+
+    support_root = os.environ.get(SUPPORT_ROOT_ENV)
+    if support_root is not None:
+        support_path = Path(support_root).resolve()
+        if not (support_path / "yae-support.package.json").is_file():
+            raise RuntimeError(f"{SUPPORT_ROOT_ENV} is not a yae-support checkout: {support_path}")
+        checkout.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(
+            support_path,
+            checkout,
+            ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache"),
+        )
 
 
 def run_self_test(yae_root: Path) -> None:
     fixture_dir = yae_root / "tests" / "fixtures" / "minimal_project"
     cloned_repositories_dir = yae_root / ".cache" / "self-test-repositories"
-    drop_support_checkout(fixture_dir, cloned_repositories_dir)
+    prepare_support_checkout(fixture_dir, cloned_repositories_dir)
 
     with tempfile.TemporaryDirectory(prefix="yae-self-test-") as temp_dir:
         project_dir = Path(temp_dir) / "minimal_project"

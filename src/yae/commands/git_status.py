@@ -99,17 +99,27 @@ class GitStatusCommand(Command):
     ) -> list[tuple[str, Path]]:
         repos: list[tuple[str, Path]] = []
         seen: set[Path] = set()
+        repositories_root = cloned_repositories_dir.resolve()
 
-        def add(path: Path) -> None:
+        def add(path: Path, require_contained: bool = False) -> None:
             resolved = path.resolve()
+            if require_contained and not resolved.is_relative_to(repositories_root):
+                return
             if resolved in seen:
                 return
             seen.add(resolved)
             try:
-                label = resolved.relative_to(cloned_repositories_dir).as_posix()
+                label = resolved.relative_to(repositories_root).as_posix()
             except ValueError:
                 label = resolved.as_posix()
             repos.append((label, resolved))
+
+        def child_directories(directory: Path) -> list[Path]:
+            try:
+                children = sorted(directory.iterdir())
+            except OSError:
+                return []
+            return [child for child in children if not child.is_symlink() and child.is_dir()]
 
         if project_dir is not None:
             add(project_dir)
@@ -117,6 +127,13 @@ class GitStatusCommand(Command):
         if registry_file.is_file():
             registry = json_utils.read_json_file(registry_file)
             for local_path in sorted(registry.keys()):
-                add(cloned_repositories_dir / local_path)
+                add(cloned_repositories_dir / local_path, require_contained=True)
+
+        for owner_dir in child_directories(cloned_repositories_dir):
+            for repository_dir in child_directories(owner_dir):
+                for checkout_dir in child_directories(repository_dir):
+                    git_marker = checkout_dir / ".git"
+                    if not git_marker.is_symlink() and git_marker.exists():
+                        add(checkout_dir, require_contained=True)
 
         return repos

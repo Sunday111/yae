@@ -5,11 +5,6 @@ from __future__ import annotations
 from typing import Iterable, TextIO
 from pathlib import Path
 
-from yae.yae_logging import get_logger
-
-
-logger = get_logger(__name__)
-
 
 class CMakeGenerator:
     """Generates tokens for CMakeLists.txt"""
@@ -119,13 +114,8 @@ class CMakeGenerator:
         self.__write(f"\n{space:{len(declaration)}}".join(self.patch_rel_path(dir) for dir in rel_dirs))
         self.line(")")
 
-    def option(self, name: str, value: str | int | bool) -> bool:
-        if isinstance(value, bool):
-            self.line(f"option({name} \"\" {'ON' if value else 'OFF'})")
-            return True
-
-        logger.error('Module %s has variable "%s" with unsupported type %s', name, name, type(value))
-        return False
+    def option(self, name: str, value: bool) -> None:
+        self.line(f"option({name} \"\" {'ON' if value else 'OFF'})")
 
     def header_comment(self, text: str):
         header_width = 80

@@ -12,9 +12,9 @@ cmake -S . -B build
 cmake --build build --parallel
 ```
 
-This needs CMake, a C++ toolchain, and the dependency checkouts. It also needs a **Python 3
-interpreter** if any module declares `CopyDirectoriesAfterBuild`: the generated root then does
-`find_package(Python3 REQUIRED COMPONENTS Interpreter)` and the build runs a script from the support
+This needs CMake 3.29 or newer, a C++ toolchain, and the dependency checkouts. It also needs a
+**Python 3.12 or newer** if any module declares `CopyDirectoriesAfterBuild`: the generated root then does
+`find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)` and the build runs a script from the support
 package to stage that content — see
 [Copying directories after build](project-model.md#copying-directories-after-build). The interpreter
 is found by CMake on the machine doing the build; the one YAE itself runs under is not baked in.
