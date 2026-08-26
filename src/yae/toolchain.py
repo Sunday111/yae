@@ -121,7 +121,7 @@ def _find_compilers(compiler: str) -> tuple[Path, Path]:
     unversioned_c = shutil.which(family)
     unversioned_cxx = shutil.which(cxx_family)
     if unversioned_c is not None and unversioned_cxx is not None:
-        return Path(unversioned_c).resolve(), Path(unversioned_cxx).resolve()
+        return Path(unversioned_c).absolute(), Path(unversioned_cxx).absolute()
 
     for version in sorted(_installed_compiler_versions(family), reverse=True):
         try:
@@ -150,7 +150,7 @@ def _find_compiler_pair(c_name: str, cxx_name: str) -> tuple[Path, Path]:
     cxx_compiler = shutil.which(cxx_name)
     if c_compiler is None or cxx_compiler is None:
         raise ProjectError(f"Could not find matching {c_name} and {cxx_name} compilers")
-    return Path(c_compiler).resolve(), Path(cxx_compiler).resolve()
+    return Path(c_compiler).absolute(), Path(cxx_compiler).absolute()
 
 
 def _find_compiler_library(cxx_compiler: Path, library_name: str) -> Path:
