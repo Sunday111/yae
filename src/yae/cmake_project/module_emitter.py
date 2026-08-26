@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
+from yae import yae_constants
 from yae.cmake_generator import CMakeGenerator
+from yae.cmake_project.staging import copy_directories_by_destination
+from yae.cmake_project.staging import copy_target_name
+from yae.cmake_project.staging import staging_manifest_relative_path
 from yae.errors import ModuleGraphError
 from yae.module import CPP_SUFFIXES
 from yae.module import CUDA_SUFFIXES
@@ -21,21 +25,25 @@ def emit_copy_target(gen: CMakeGenerator, module: Module) -> None:
     touching the ones another module staged into the same place.
     """
 
-    copy_dirs = list(sorted(module.post_build_copy_dirs))
-    if not copy_dirs:
+    copy_dirs_by_destination = copy_directories_by_destination(module)
+    if not copy_dirs_by_destination:
         return
 
-    target = f"{module.cmake_target_name}_copy_files"
+    target = copy_target_name(module)
     gen.line(f"add_custom_target({target} ALL")
-    for copy_dir in copy_dirs:
-        relative_dir = copy_dir.relative_to(module.root_dir).as_posix()
-        destination = copy_dir.stem
+    for destination, copy_dirs in copy_dirs_by_destination.items():
         gen.line('    COMMAND ${Python3_EXECUTABLE} "${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"')
         gen.line(f'            --destination "${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}/{destination}"')
-        gen.line(f'            --source "${{CMAKE_CURRENT_SOURCE_DIR}}/{relative_dir}"')
-        gen.line(f'            --manifest "${{CMAKE_CURRENT_BINARY_DIR}}/{target}_{destination}.manifest"')
+        gen.line('            --destination-root "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"')
+        for copy_dir in copy_dirs:
+            relative_dir = copy_dir.relative_to(module.root_dir).as_posix()
+            gen.line(f'            --source "${{CMAKE_CURRENT_SOURCE_DIR}}/{relative_dir}"')
+        manifest_path = staging_manifest_relative_path(module, destination).as_posix()
+        gen.line(f'            --manifest "${{YAE_STAGING_ROOT}}/{manifest_path}"')
+        gen.line('            --active-manifests "${YAE_STAGING_PLAN}"')
     gen.line(f'    COMMENT "stage content of {module.cmake_target_name}"')
     gen.line("    VERBATIM)")
+    gen.line(f"add_dependencies({target} yae_reconcile_staging)")
     gen.line(f"add_dependencies({module.cmake_target_name} {target})")
 
 
@@ -43,7 +51,7 @@ def emit_module_cmake_file(module: Module, module_registry: ModuleRegistry) -> N
     cmake_file_path = CMakeGenerator.make_file_path(module.root_dir)
     with open(cmake_file_path, mode="w", encoding="utf-8") as file:
         gen = CMakeGenerator(file)
-        gen.version_line(3, 20)
+        gen.version_line(*yae_constants.CMAKE_MINIMUM_VERSION)
 
         rel_sources = sorted(path.relative_to(module.root_dir) for path in module.source_files)
         has_cpp_files = any(path.suffix in CPP_SUFFIXES for path in rel_sources)

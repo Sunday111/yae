@@ -13,10 +13,10 @@ from yae.settings import CLONED_REPOSITORIES_DIR_ENV
 from yae.settings import PROJECT_DIR_ENV
 
 
-def _resolved_path(value: object) -> Path | None:
-    if not value:
+def _resolved_path(value: str | Path | None) -> Path | None:
+    if value is None or value == "":
         return None
-    return Path(value).expanduser().resolve()  # type: ignore[arg-type]
+    return Path(value).expanduser().resolve()
 
 
 class CommandContext:

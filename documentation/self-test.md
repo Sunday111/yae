@@ -22,14 +22,14 @@ a full slice of YAE end-to-end:
 
 Use `--yae-root` to point at a specific YAE checkout containing `tests/fixtures`.
 
-It builds a real project, so it needs what any generated project needs: CMake, a C++ toolchain and a Python 3
-interpreter — see [Getting started](getting-started.md#requirements).
+It builds a real project, so it needs what any generated project needs: CMake 3.29 or newer, a C++ toolchain and
+Python 3.12 or newer — see [Getting started](getting-started.md#requirements).
 
 It fetches its dependencies into `.cache/self-test-repositories`, which is reused between runs. The support package is
 the exception: it is dropped and fetched again on every run. A [fetched repository](repositories.md#the-registry) is
 never updated once it is there, which is what a pinned dependency wants — but the support package ships the CMake and
 scripts generated projects build with, and it moves with YAE, so a run that reused an old one would be testing the wrong
-thing.
+thing. Set `YAE_SUPPORT_ROOT` to exercise a specific support checkout instead of fetching it.
 
 ## Unit tests
 
@@ -38,16 +38,5 @@ uv run pytest
 ```
 
 They live under `tests/` and cover the same building blocks in isolation.
-
-Some of them test scripts that ship in the [support package](generated-cmake.md#the-support-package) rather than in this
-repository — generated projects run those scripts without YAE present, but YAE decides how they are called, so they are
-tested here. They need a `yae-support` checkout, looked for in this order:
-
-1. `YAE_SUPPORT_ROOT`, if set — name a checkout outright.
-2. `yae-support` next to the YAE checkout.
-3. `yae-support` under `YAE_CLONED_REPOSITORIES_DIR`, at the usual
-   [versioned path](repositories.md#versioned-checkout-paths).
-4. Whatever a previous `yae self-test` run fetched into `.cache/self-test-repositories`.
-
-Without one, those tests fail with a message listing the paths tried; the rest of the suite still runs. CI checks the
-package out and sets `YAE_SUPPORT_ROOT`.
+The support package tests its scripts directly; YAE tests the generated interface and exercises the complete pairing in
+the self-test above.

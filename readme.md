@@ -9,8 +9,8 @@ The Python implementation lives under `src/yae`; the root `yae` launcher runs it
 ## Requirements
 
 - **[uv](https://docs.astral.sh/uv/)** on your `PATH` (runs YAE in a local `.venv`; nothing is installed globally).
-- **git**, **cmake**, **Ninja** (the default generator), and a C++ toolchain.
-- **Python 3**, if the project stages content — the build calls a script to do it. Needed to build the
+- **git**, **CMake 3.29 or newer**, **Ninja** (the default generator), and a C++ toolchain.
+- **Python 3.12 or newer**, if the project stages content — the build calls a script to do it. Needed to build the
   project even without YAE; see [Generated CMake](documentation/generated-cmake.md#building-without-yae).
 
 ## Install

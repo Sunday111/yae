@@ -35,8 +35,8 @@ YAE records fetched repositories in `registry.json` under the cloned-repositorie
 and registered when its `origin` URL matches and the requested ref is checked out, points at `HEAD`, or is an ancestor
 of `HEAD`. This lets a shared working branch satisfy a pinned base branch without YAE switching your checkout.
 
-`yae git-status` reads this registry to report the status of every fetched repository — see
-[Commands](commands.md#yae-git-status).
+`yae git-status` discovers checkouts in the standard versioned layout and also reads this registry for nonstandard
+paths — see [Commands](commands.md#yae-git-status).
 
 ## Running from anywhere
 

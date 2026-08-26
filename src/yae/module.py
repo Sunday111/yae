@@ -58,7 +58,7 @@ class Module:
 
         self.__cmake_target_name: None | str = json.get("TargetName", None)
         self.__enable_testing: bool = json.get("EnableTesting", False)
-        self.__cmake_options: dict[str, bool | int | str] = json.get("CMakeOptions", {})
+        self.__cmake_options = self.__read_cmake_options(json)
         self.__cmake_modular_targets = json.get("CMakeModularTargets", list())
         self.__cmake_exclude_from_all = json.get("CMakeExcludeFromAll", False)
         self.__cmake_add_subdirectory = json.get("CMakeAddSubdirectory", True)
@@ -91,7 +91,10 @@ class Module:
         repo_path = parse_repo_path_from_url(self.git_url)
         if repo_path is not None:
             return versioned_repo_path(repo_path, self.git_tag)
-        return Path(file_data["LocalPath"])
+        local_path = Path(file_data["LocalPath"])
+        if local_path.is_absolute() or not local_path.parts or ".." in local_path.parts:
+            raise ModuleGraphError(f"GitClone module '{self.name}' LocalPath must stay within the repositories root")
+        return local_path
 
     def __read_binary(self, file_data: dict) -> None:
         # Triple -> {"Url": ..., "Sha256": ...}. The set of triples is the set of
@@ -106,6 +109,15 @@ class Module:
         # package and the target it exports (via CMakeModularTargets) are what
         # consumers actually link.
         self.__find_package_name: str = file_data.get("FindPackage", self.name)
+
+    def __read_cmake_options(self, file_data: dict) -> dict[str, bool]:
+        options = file_data.get("CMakeOptions", {})
+        if not isinstance(options, dict):
+            raise ModuleGraphError(f"Module '{self.name}' CMakeOptions must be an object")
+        for name, value in options.items():
+            if not isinstance(value, bool):
+                raise ModuleGraphError(f"Module '{self.name}' CMake option '{name}' must be boolean")
+        return options
 
     def select_artifact(self, triple: str) -> BinaryArtifact:
         artifact = self.__artifacts.get(triple)
@@ -223,7 +235,7 @@ class Module:
         return self.__enable_testing
 
     @property
-    def cmake_options(self) -> dict[str, int | str | bool]:
+    def cmake_options(self) -> dict[str, bool]:
         return self.__cmake_options
 
     @property

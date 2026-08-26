@@ -29,6 +29,12 @@ class RepositoryFetcher:
 
     def ensure(self, path: Path, git_url: str, git_tag: str) -> bool:
         """Ensures `git_url`@`git_tag` is checked out at `path`. Returns success."""
+        if path.is_absolute() or not path.parts or ".." in path.parts:
+            raise FetchError("Repository checkout path must stay within the repositories root")
+        repositories_root = self.ctx.project_config.cloned_repositories_dir.resolve()
+        clone_destination = (repositories_root / path).resolve()
+        if not clone_destination.is_relative_to(repositories_root):
+            raise FetchError("Repository checkout path must stay within the repositories root")
         recorded = self.registry.get(path)
         if recorded is not None:
             existing_git_url, existing_git_tag = recorded
@@ -50,7 +56,6 @@ class RepositoryFetcher:
                 return False
             return True
 
-        clone_destination = self.ctx.project_config.cloned_repositories_dir / path
         if clone_destination.exists():
             return self.__register_existing_checkout(path, clone_destination, git_url, git_tag)
 

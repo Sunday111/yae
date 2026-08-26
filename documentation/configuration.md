@@ -57,10 +57,18 @@ YAE enables `CMAKE_EXPORT_COMPILE_COMMANDS` by default. Set it to `OFF` in `cmak
 YAE first uses the corresponding unversioned C/C++ pair. If either is unavailable, it selects the highest installed
 matching versioned pair. `linker` accepts `mold`, `lld`, or `ld`.
 
+When a project enables CUDA under a Clang toolchain, YAE uses that same resolved Clang C++ executable as the CUDA
+frontend. This keeps version fallback and the selected C++ standard library consistent across C++ and CUDA translation
+units.
+
 `cpplib` accepts `llvm-static` for static libc++ and libc++abi, or `gcc-static` for static libstdc++. When omitted,
 the compiler's default C++ standard library is used; GCC therefore uses dynamically linked libstdc++ by default.
-Static standard-library overrides require Clang. When `yae-toolchain` is omitted, YAE uses its shipped
+The selection applies to both C++ and Clang CUDA compilation. Static standard-library overrides require Clang. When
+`yae-toolchain` is omitted, YAE uses its shipped
 `default_toolchain.json`, which selects GCC, dynamic libstdc++, and GNU `ld`.
+
+NVIDIA's x86 CUDA headers do not support libc++. Projects compiling CUDA for x86 hosts therefore use `gcc-static`
+rather than `llvm-static` when selecting a static C++ standard library.
 
 YAE stores generated toolchain files under `<cloned_repositories_dir>/.yae/toolchains` and passes the selected file to
 CMake. Toolchain settings therefore do not affect committed generated `CMakeLists.txt` files. Adding, removing, or

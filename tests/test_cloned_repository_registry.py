@@ -4,7 +4,10 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from yae.cloned_repository_registry import ClonedRepositoryRegistry
+from yae.errors import FetchError
 from yae.global_context import GlobalContext
 from yae.repository_fetcher import RepositoryFetcher
 
@@ -79,6 +82,37 @@ def test_existing_checkout_rejects_wrong_origin(tmp_path: Path) -> None:
         "https://github.com/Sunday111/example",
         "main",
     )
+
+
+@pytest.mark.parametrize("local_path", [Path("../outside"), Path("/outside"), Path()])
+def test_fetch_rejects_checkout_paths_outside_root(tmp_path: Path, local_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    repositories_dir = tmp_path / "repositories"
+    write_project(project_dir)
+
+    with pytest.raises(FetchError, match="must stay within the repositories root"):
+        fetcher_for(project_dir, repositories_dir).ensure(
+            local_path,
+            "https://github.com/Sunday111/example",
+            "main",
+        )
+
+
+def test_fetch_rejects_checkout_path_through_outside_symlink(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    repositories_dir = tmp_path / "repositories"
+    repositories_dir.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (repositories_dir / "vendor").symlink_to(outside, target_is_directory=True)
+    write_project(project_dir)
+
+    with pytest.raises(FetchError, match="must stay within the repositories root"):
+        fetcher_for(project_dir, repositories_dir).ensure(
+            Path("vendor/example"),
+            "https://github.com/Sunday111/example",
+            "main",
+        )
 
 
 def test_same_repository_different_refs_can_use_different_paths(tmp_path: Path) -> None:

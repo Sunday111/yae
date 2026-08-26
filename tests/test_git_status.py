@@ -83,6 +83,76 @@ def test_git_status_all_lists_clean_repositories(tmp_path, monkeypatch, capsys) 
     assert "clean" in out
 
 
+def test_git_status_discovers_unregistered_versioned_checkout(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    root.mkdir()
+    repo = root / "Owner" / "project" / "main"
+    make_repo(repo)
+    (repo / "new.txt").write_text("x\n", encoding="utf-8")
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    out = capsys.readouterr().out
+    assert "Owner/project/main" in out
+    assert "new.txt" in out
+
+
+def test_git_status_discovery_does_not_follow_symlinks_outside_root(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    root.mkdir()
+    owner_target = tmp_path / "outside-owner"
+    repository_target = tmp_path / "outside-repository"
+    checkout_target = tmp_path / "outside-checkout"
+    make_repo(owner_target / "project" / "main")
+    make_repo(repository_target / "main")
+    make_repo(checkout_target)
+    (owner_target / "project" / "main" / "owner.txt").write_text("x\n", encoding="utf-8")
+    (repository_target / "main" / "repository.txt").write_text("x\n", encoding="utf-8")
+    (checkout_target / "checkout.txt").write_text("x\n", encoding="utf-8")
+    (root / "linked-owner").symlink_to(owner_target, target_is_directory=True)
+    (root / "Owner").mkdir()
+    (root / "Owner" / "linked-repository").symlink_to(repository_target, target_is_directory=True)
+    (root / "Owner" / "project").mkdir()
+    (root / "Owner" / "project" / "linked-checkout").symlink_to(checkout_target, target_is_directory=True)
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    assert "No repositories with changes." in capsys.readouterr().out
+
+
+def test_git_status_ignores_registry_paths_outside_root(tmp_path, monkeypatch, capsys) -> None:
+    root = tmp_path / "repositories"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    make_repo(outside)
+    (outside / "new.txt").write_text("x\n", encoding="utf-8")
+    _write_registry(root, ["../outside"])
+
+    context = _context_for(root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    assert "No repositories with changes." in capsys.readouterr().out
+
+
+def test_git_status_labels_checkouts_relative_to_symlinked_root(tmp_path, monkeypatch, capsys) -> None:
+    real_root = tmp_path / "real-repositories"
+    real_root.mkdir()
+    repo = real_root / "Owner" / "project" / "main"
+    make_repo(repo)
+    (repo / "new.txt").write_text("x\n", encoding="utf-8")
+    linked_root = tmp_path / "repositories"
+    linked_root.symlink_to(real_root, target_is_directory=True)
+
+    context = _context_for(linked_root, monkeypatch)
+    GitStatusCommand().run(context, argparse.Namespace(all=False))
+
+    out = capsys.readouterr().out
+    assert "Owner/project/main" in out
+    assert real_root.as_posix() not in out
+
+
 def test_git_status_reports_nothing_when_all_clean(tmp_path, monkeypatch, capsys) -> None:
     root = tmp_path / "repositories"
     root.mkdir()

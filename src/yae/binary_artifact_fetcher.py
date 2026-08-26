@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
+import errno
 import hashlib
+import os
 import shutil
 import tarfile
 import tempfile
 import time
 import urllib.request
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterator
 
 from yae.errors import FetchError
 from yae.module import Module
@@ -19,6 +23,45 @@ logger = get_logger(__name__)
 # Bump if the extraction layout ever changes so stale unpacks are refetched.
 _MARKER_NAME = ".yae-binary-artifact"
 _DOWNLOAD_CHUNK = 1 << 20
+_LOCK_RETRY_SECONDS = 0.05
+
+
+def _is_path_link(path: Path) -> bool:
+    return path.is_symlink() or path.is_junction()
+
+
+@contextmanager
+def _exclusive_file_lock(path: Path) -> Iterator[None]:
+    with path.open("a+b") as lock_file:
+        if os.name == "nt":
+            import msvcrt
+
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            lock_file.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as err:
+                    if err.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+                        raise
+                    time.sleep(_LOCK_RETRY_SECONDS)
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 class BinaryArtifactFetcher:
@@ -34,21 +77,70 @@ class BinaryArtifactFetcher:
     def ensure(self, module: Module) -> None:
         triple = current_system_triple()
         artifact = module.select_artifact(triple)
+        try:
+            extract_dir = self.__prepare_extract_dir(module, triple)
+            lock_path = extract_dir.parent / f".{extract_dir.name}.lock"
+            with _exclusive_file_lock(lock_path):
+                self.__recover_interrupted_install(extract_dir)
+                marker = extract_dir / _MARKER_NAME
+                try:
+                    marker_matches = (
+                        not _is_path_link(extract_dir)
+                        and extract_dir.is_dir()
+                        and not _is_path_link(marker)
+                        and marker.is_file()
+                        and marker.read_text(encoding="utf-8").strip() == artifact.sha256
+                    )
+                except UnicodeDecodeError:
+                    marker_matches = False
+                if marker_matches:
+                    return
+
+                logger.info("Fetching binary dependency %s (%s)", module.name, triple)
+                start_time = time.time()
+                with tempfile.TemporaryDirectory() as download_dir, tempfile.TemporaryDirectory(
+                    dir=extract_dir.parent,
+                    prefix=f".{extract_dir.name}-staging-",
+                ) as staging_root:
+                    archive = Path(download_dir) / "artifact"
+                    staged_extract = Path(staging_root) / "extract"
+                    staged_extract.mkdir()
+                    self.__download(artifact.url, archive)
+                    self.__verify(archive, artifact.sha256, artifact.url)
+                    self.__extract(archive, staged_extract)
+                    staged_marker = staged_extract / _MARKER_NAME
+                    if staged_marker.exists() or _is_path_link(staged_marker):
+                        raise FetchError(
+                            f"Binary dependency archive contains reserved path {_MARKER_NAME}"
+                        )
+                    staged_marker.write_text(artifact.sha256, encoding="utf-8")
+                    self.__replace_extract(staged_extract, extract_dir)
+                logger.info("Unpacked %s in %.2fs", module.name, time.time() - start_time)
+        except FetchError:
+            raise
+        except OSError as err:
+            raise FetchError(f"Failed to install binary dependency {module.name}: {err}") from err
+
+    def __prepare_extract_dir(self, module: Module, triple: str) -> Path:
         extract_dir = module.binary_extract_dir(triple)
-        marker = extract_dir / _MARKER_NAME
-
-        if marker.is_file() and marker.read_text(encoding="utf-8").strip() == artifact.sha256:
-            return
-
-        logger.info("Fetching binary dependency %s (%s)", module.name, triple)
-        start_time = time.time()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            archive = Path(temp_dir) / "artifact"
-            self.__download(artifact.url, archive)
-            self.__verify(archive, artifact.sha256, artifact.url)
-            self.__extract(archive, extract_dir)
-        marker.write_text(artifact.sha256, encoding="utf-8")
-        logger.info("Unpacked %s in %.2fs", module.name, time.time() - start_time)
+        artifacts_dir = extract_dir.parent
+        if _is_path_link(artifacts_dir):
+            raise FetchError(
+                f"Binary dependency extraction directory must not be a symlink or junction: "
+                f"{artifacts_dir}"
+            )
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        if artifacts_dir.resolve() != artifacts_dir:
+            raise FetchError(
+                f"Binary dependency extraction directory must stay within {module.root_dir}: "
+                f"{artifacts_dir}"
+            )
+        if _is_path_link(extract_dir):
+            raise FetchError(
+                f"Binary dependency extraction directory must not be a symlink or junction: "
+                f"{extract_dir}"
+            )
+        return extract_dir
 
     def __download(self, url: str, destination: Path) -> None:
         try:
@@ -70,24 +162,65 @@ class BinaryArtifactFetcher:
             )
 
     def __extract(self, archive: Path, extract_dir: Path) -> None:
-        # Replace any previous unpack wholesale so a refetch cannot blend two
-        # versions. The parent is the git-ignored .prebuilt dir in the checkout.
-        if extract_dir.exists():
-            shutil.rmtree(extract_dir)
-        extract_dir.mkdir(parents=True)
         try:
             with tarfile.open(archive, mode="r:*") as tar:
-                self.__safe_extract(tar, extract_dir)
+                tar.extractall(extract_dir, filter="data")
         except tarfile.TarError as err:
             raise FetchError(f"Failed to unpack binary dependency archive {archive.name}: {err}")
 
-    def __safe_extract(self, tar: tarfile.TarFile, extract_dir: Path) -> None:
-        # A release archive is trusted (pinned URL + checksum), but a path that
-        # escapes the destination would still be a bug worth refusing rather than
-        # silently writing outside the tree.
-        resolved_root = extract_dir.resolve()
-        for member in tar.getmembers():
-            target = (extract_dir / member.name).resolve()
-            if not target.is_relative_to(resolved_root):
-                raise FetchError(f"Refusing archive member outside extraction dir: {member.name}")
-        tar.extractall(extract_dir)
+    def __recover_interrupted_install(self, extract_dir: Path) -> None:
+        previous_extract = extract_dir.with_name(f".{extract_dir.name}.previous")
+        if not previous_extract.exists() and not _is_path_link(previous_extract):
+            return
+        if extract_dir.is_dir() and not _is_path_link(extract_dir):
+            self.__remove_path(previous_extract)
+            return
+        if _is_path_link(previous_extract) or not previous_extract.is_dir():
+            self.__remove_path(previous_extract)
+            return
+        if extract_dir.exists() or _is_path_link(extract_dir):
+            self.__remove_path(extract_dir)
+        previous_extract.replace(extract_dir)
+
+    def __replace_extract(self, staged_extract: Path, extract_dir: Path) -> None:
+        previous_extract = extract_dir.with_name(f".{extract_dir.name}.previous")
+        try:
+            if extract_dir.exists() or _is_path_link(extract_dir):
+                extract_dir.replace(previous_extract)
+            staged_extract.replace(extract_dir)
+        except BaseException as install_error:
+            try:
+                if (
+                    not extract_dir.exists()
+                    and not _is_path_link(extract_dir)
+                    and previous_extract.exists()
+                ):
+                    previous_extract.replace(extract_dir)
+            except OSError as restore_error:
+                raise FetchError(
+                    f"Failed to install binary dependency and restore {extract_dir}; "
+                    f"the previous unpack remains at {previous_extract}: {restore_error}"
+                ) from install_error
+            if isinstance(install_error, OSError):
+                raise FetchError(
+                    f"Failed to replace binary dependency at {extract_dir}: {install_error}"
+                ) from install_error
+            raise
+
+        if previous_extract.exists() or _is_path_link(previous_extract):
+            try:
+                self.__remove_path(previous_extract)
+            except OSError as err:
+                logger.warning(
+                    "Could not remove previous binary dependency unpack %s: %s",
+                    previous_extract,
+                    err,
+                )
+
+    def __remove_path(self, path: Path) -> None:
+        if path.is_junction():
+            path.rmdir()
+        elif path.is_symlink() or not path.is_dir():
+            path.unlink()
+        else:
+            shutil.rmtree(path)

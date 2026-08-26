@@ -3,6 +3,8 @@ from __future__ import annotations
 from yae import yae_constants
 from yae.cmake_generator import CMakeGenerator
 from yae.cmake_project.paths import CMakePathResolver
+from yae.cmake_project.staging import copy_directories_by_destination
+from yae.cmake_project.staging import staging_manifest_relative_path
 from yae.module import CUDA_SUFFIXES
 from yae.module import Module
 from yae.module import ModuleType
@@ -17,7 +19,7 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
     module_registry = resolved_project.module_registry
     path_resolver = CMakePathResolver(ctx)
 
-    gen.version_line(3, 20)
+    gen.version_line(*yae_constants.CMAKE_MINIMUM_VERSION)
     gen.line()
     gen.project_line(ctx.project_config.name)
     gen.line()
@@ -53,7 +55,7 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         gen.include("yae_lto")
         gen.line("enable_lto_globally()" if ctx.project_config.enable_lto_globally else "disable_lto_globally()")
 
-    _emit_staging_interpreter(gen, resolved_project)
+    _emit_staging_reconciliation(gen, resolved_project)
 
     gen.line()
     gen.line()
@@ -84,8 +86,7 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
 
         if module.should_add_subdirectory:
             for variable_name, variable_value in module.cmake_options.items():
-                if not gen.option(variable_name, variable_value):
-                    return
+                gen.option(variable_name, variable_value)
 
             local_cmake_file_path = f"/{module.cmake_file_path}" if module.cmake_file_path else ""
             gen.add_subdirectory(
@@ -100,6 +101,8 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
         for extra_cmake in module.extra_cmake_files:
             module_root = path_resolver.source_path(module.root_dir, prefer_project_root=prefer_project_root)
             gen.include(f"{module_root}/{extra_cmake}.cmake")
+
+    _emit_staging_target_dependencies(gen, module_registry)
 
     gen.line()
     gen.line("enable_testing()")
@@ -128,24 +131,91 @@ def _project_has_cuda(module_registry: ModuleRegistry) -> bool:
     )
 
 
-def _emit_staging_interpreter(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:
-    """Finds the interpreter that modules staging content will use.
-
-    Found here rather than baked in as the one yae happens to be running under: the
-    generated project has to build without yae. Modules are added below this, so they
-    all see Python3_EXECUTABLE.
-    """
-
+def _emit_staging_reconciliation(gen: CMakeGenerator, resolved_project: ResolvedProject) -> None:
     module_registry = resolved_project.module_registry
-    stages_anything = any(
-        (module := module_registry.find(module_name)) is not None and any(module.post_build_copy_dirs)
-        for module_name in module_registry.topological_sort()
-    )
-    if not stages_anything:
-        return
+    path_resolver = CMakePathResolver(resolved_project.context)
+    active_owners: list[tuple[str, list[str]]] = []
+    for module_name in module_registry.topological_sort():
+        module = module_registry.find(module_name)
+        if module is None or module.module_type in (ModuleType.GITCLONE, ModuleType.BINARY):
+            continue
+        if not module.generate_cmake_file:
+            continue
+        prefer_project_root = resolved_project.module_origins[module.name] == ModuleOrigin.PROJECT
+        module_source_path = path_resolver.source_path(
+            module.root_dir, prefer_project_root=prefer_project_root
+        )
+        for destination, copy_dirs in copy_directories_by_destination(module).items():
+            sources = [
+                f"{module_source_path}/{copy_dir.relative_to(module.root_dir).as_posix()}"
+                for copy_dir in copy_dirs
+            ]
+            active_owners.append(
+                (staging_manifest_relative_path(module, destination).as_posix(), sources)
+            )
 
-    gen.line()
-    gen.line("find_package(Python3 REQUIRED COMPONENTS Interpreter)")
+    active_owners.sort()
+    gen.line('set(YAE_STAGING_ROOT "${CMAKE_BINARY_DIR}/.yae-staging")')
+    gen.line('set(YAE_STAGING_PLAN "${YAE_STAGING_ROOT}/active-manifests.txt")')
+    conditional = not active_owners
+    indentation = ""
+    if conditional:
+        gen.line("file(GLOB_RECURSE YAE_LEGACY_STAGING_MANIFESTS")
+        gen.line("    LIST_DIRECTORIES FALSE")
+        gen.line('    "${CMAKE_BINARY_DIR}/yae_modules/*_copy_files_*.manifest")')
+        gen.line('if(EXISTS "${YAE_STAGING_ROOT}" OR YAE_LEGACY_STAGING_MANIFESTS)')
+        indentation = "    "
+
+    gen.line(f"{indentation}find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)")
+    gen.line(f"{indentation}execute_process(")
+    gen.line(f"{indentation}    COMMAND ${{Python3_EXECUTABLE}}")
+    gen.line(f'{indentation}            "${{YAE_SUPPORT_ROOT}}/scripts/stage_directories.py"')
+    gen.line(f"{indentation}            --write-plan")
+    gen.line(f'{indentation}            --manifest-root "${{YAE_STAGING_ROOT}}"')
+    gen.line(f'{indentation}            --active-manifests "${{YAE_STAGING_PLAN}}"')
+    for manifest, sources in active_owners:
+        gen.line(
+            f'{indentation}            --plan-entry "manifest\\t{manifest}"'
+        )
+        for source in sources:
+            gen.line(
+                f'{indentation}            --plan-entry "source\\t{source}"'
+            )
+    gen.line(f"{indentation}    RESULT_VARIABLE YAE_STAGING_PLAN_RESULT")
+    gen.line(f"{indentation}    ERROR_VARIABLE YAE_STAGING_PLAN_ERROR)")
+    gen.line(f'{indentation}if(NOT YAE_STAGING_PLAN_RESULT EQUAL 0)')
+    gen.line(
+        f'{indentation}    message(FATAL_ERROR "Failed to publish staging plan: '
+        '${YAE_STAGING_PLAN_ERROR}")'
+    )
+    gen.line(f"{indentation}endif()")
+    gen.line(f"{indentation}add_custom_target(yae_reconcile_staging ALL")
+    gen.line(
+        f'{indentation}    COMMAND ${{Python3_EXECUTABLE}} '
+        '"${YAE_SUPPORT_ROOT}/scripts/stage_directories.py"'
+    )
+    gen.line(f'{indentation}            --reconcile')
+    gen.line(f'{indentation}            --destination-root "${{CMAKE_RUNTIME_OUTPUT_DIRECTORY}}"')
+    gen.line(f'{indentation}            --manifest-root "${{YAE_STAGING_ROOT}}"')
+    gen.line(f'{indentation}            --active-manifests "${{YAE_STAGING_PLAN}}"')
+    gen.line(f'{indentation}            --legacy-manifest-root "${{CMAKE_BINARY_DIR}}/yae_modules"')
+    gen.line(f'{indentation}    COMMENT "reconcile staged content"')
+    gen.line(f"{indentation}    VERBATIM)")
+
+    if conditional:
+        gen.line("endif()")
+
+
+def _emit_staging_target_dependencies(gen: CMakeGenerator, module_registry: ModuleRegistry) -> None:
+    for module_name in module_registry.topological_sort():
+        module = module_registry.find(module_name)
+        if module is None or module.module_type in (ModuleType.GITCLONE, ModuleType.BINARY):
+            continue
+        gen.line(
+            f"if(TARGET yae_reconcile_staging AND TARGET {module.cmake_target_name})"
+        )
+        gen.line(f"    add_dependencies({module.cmake_target_name} yae_reconcile_staging)")
+        gen.line("endif()")
 
 
 def _emit_output_directories(gen: CMakeGenerator) -> None:

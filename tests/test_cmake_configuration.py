@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import json
+from io import StringIO
 from pathlib import Path
 
 import pytest
 
+from yae.cmake_generator import CMakeGenerator
+from yae.cmake_project.root_emitter import emit_root_project
 from yae.cmake_project.paths import CMakePathResolver
 from yae.commands import common
 from yae.errors import ProjectError
 from yae.global_context import GlobalContext
+from yae.module import Module
+from yae.module_registry import ModuleRegistry
+from yae.package import Package
+from yae.resolver import ModuleOrigin
+from yae.resolver import ResolvedProject
 
 
 def write_project(project_dir: Path) -> None:
@@ -57,6 +65,122 @@ def test_generated_cmake_cloned_repositories_dir_default_is_project_local(tmp_pa
         CMakePathResolver(context).emit_default_cloned_repositories_dir()
         == "${CMAKE_CURRENT_SOURCE_DIR}/cloned_repositories"
     )
+
+
+def test_generated_root_cmake_requires_supported_cmake_version(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
+    support_file = tmp_path / "yae-support" / "yae-support.package.json"
+    support_file.parent.mkdir()
+    support_file.write_text("{}", encoding="utf-8")
+    resolved = ResolvedProject(
+        context=context,
+        packages=[Package(support_file)],
+        module_registry=ModuleRegistry(),
+        module_origins={},
+    )
+    output = StringIO()
+
+    emit_root_project(CMakeGenerator(output), resolved)
+
+    assert output.getvalue().startswith("cmake_minimum_required(VERSION 3.29)\n")
+
+
+def test_generated_root_reconciles_shared_staging_ownership(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    module_file = project_dir / "src/staged/staged.module.json"
+    module_file.parent.mkdir(parents=True)
+    module_file.write_text(
+        json.dumps({"ModuleType": "Library", "CopyDirectoriesAfterBuild": ["content"]}),
+        encoding="utf-8",
+    )
+    (module_file.parent / "content").mkdir()
+    registry = ModuleRegistry()
+    module = Module(module_file)
+    registry.add_one(module)
+    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
+    support_file = tmp_path / "yae-support" / "yae-support.package.json"
+    support_file.parent.mkdir()
+    support_file.write_text("{}", encoding="utf-8")
+    resolved = ResolvedProject(
+        context=context,
+        packages=[Package(support_file)],
+        module_registry=registry,
+        module_origins={module.name: ModuleOrigin.PROJECT},
+    )
+    output = StringIO()
+
+    emit_root_project(CMakeGenerator(output), resolved)
+    cmake = output.getvalue()
+
+    assert "content/staged_copy_files.manifest" in cmake
+    assert "add_custom_target(yae_reconcile_staging ALL" in cmake
+    assert "find_package(Python3 3.12 REQUIRED COMPONENTS Interpreter)" in cmake
+    assert "--reconcile" in cmake
+    assert "--write-plan" in cmake
+    assert 'execute_process(\n    COMMAND ${Python3_EXECUTABLE}' in cmake
+    assert "manifest\\tcontent/staged_copy_files.manifest" in cmake
+    assert "source\\t${CMAKE_CURRENT_SOURCE_DIR}/src/staged/content" in cmake
+    assert "YAE_STAGING_PLAN_TEMP" not in cmake
+    assert 'file(WRITE "${YAE_STAGING_PLAN}' not in cmake
+    assert "add_dependencies(staged yae_reconcile_staging)" in cmake
+    assert 'if(EXISTS "${YAE_STAGING_ROOT}")' not in cmake
+
+
+def test_generated_root_conditionally_cleans_removed_last_staging_module(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
+    support_file = tmp_path / "yae-support" / "yae-support.package.json"
+    support_file.parent.mkdir()
+    support_file.write_text("{}", encoding="utf-8")
+    resolved = ResolvedProject(
+        context=context,
+        packages=[Package(support_file)],
+        module_registry=ModuleRegistry(),
+        module_origins={},
+    )
+    output = StringIO()
+
+    emit_root_project(CMakeGenerator(output), resolved)
+    cmake = output.getvalue()
+
+    assert "file(GLOB_RECURSE YAE_LEGACY_STAGING_MANIFESTS" in cmake
+    assert '"${CMAKE_BINARY_DIR}/yae_modules/*_copy_files_*.manifest"' in cmake
+    assert 'if(EXISTS "${YAE_STAGING_ROOT}" OR YAE_LEGACY_STAGING_MANIFESTS)' in cmake
+    assert "--write-plan" in cmake
+    assert "add_custom_target(yae_reconcile_staging ALL" in cmake
+
+
+def test_generated_root_orders_custom_module_targets_after_reconciliation(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    write_project(project_dir)
+    module_file = project_dir / "custom/custom.module.json"
+    module_file.parent.mkdir(parents=True)
+    module_file.write_text(
+        json.dumps({"ModuleType": "Library", "GenerateCMakeFile": False}),
+        encoding="utf-8",
+    )
+    registry = ModuleRegistry()
+    module = Module(module_file)
+    registry.add_one(module)
+    context = GlobalContext(project_root=project_dir, cloned_repositories_dir=tmp_path / "shared")
+    support_file = tmp_path / "yae-support/yae-support.package.json"
+    support_file.parent.mkdir()
+    support_file.write_text("{}", encoding="utf-8")
+    resolved = ResolvedProject(
+        context=context,
+        packages=[Package(support_file)],
+        module_registry=registry,
+        module_origins={module.name: ModuleOrigin.PROJECT},
+    )
+    output = StringIO()
+
+    emit_root_project(CMakeGenerator(output), resolved)
+
+    assert "add_dependencies(custom yae_reconcile_staging)" in output.getvalue()
 
 
 def test_project_local_cloned_repositories_override_uses_cmake_variable(tmp_path: Path) -> None:
