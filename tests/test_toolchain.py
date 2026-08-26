@@ -68,6 +68,20 @@ def test_exact_clang_version_does_not_fallback(monkeypatch) -> None:
         toolchain._find_compilers("clang-21")
 
 
+def test_compiler_symlinks_preserve_the_selected_driver_name(tmp_path: Path, monkeypatch) -> None:
+    compiler = tmp_path / "bin" / "clang"
+    compiler.parent.mkdir()
+    compiler.touch()
+    c_compiler = compiler.with_name("clang-22")
+    cxx_compiler = compiler.with_name("clang++-22")
+    c_compiler.symlink_to(compiler)
+    cxx_compiler.symlink_to(compiler)
+    paths = {"clang-22": c_compiler.as_posix(), "clang++-22": cxx_compiler.as_posix()}
+    monkeypatch.setattr(toolchain.shutil, "which", paths.get)
+
+    assert toolchain._find_compilers("clang-22") == (c_compiler, cxx_compiler)
+
+
 def test_default_toolchain_uses_dynamic_libstdcxx_and_gnu_linker(tmp_path: Path, monkeypatch) -> None:
     c_compiler = tmp_path / "bin" / "gcc"
     cxx_compiler = tmp_path / "bin" / "g++"
