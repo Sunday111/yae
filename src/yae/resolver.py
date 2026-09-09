@@ -47,6 +47,7 @@ def gather_packages(ctx: GlobalContext, fetcher: RepositoryFetcher) -> list[Pack
     available_packages: dict[str, tuple[Package, GitHubLink]] = {}
     packages_to_fetch: list[tuple[str, GitHubLink]] = []
     required_packages: set[str] = set()
+    expanded_packages: set[str] = set()
 
     for package in ctx.project_config.packages:
         if package.name in local_packages:
@@ -69,27 +70,28 @@ def gather_packages(ctx: GlobalContext, fetcher: RepositoryFetcher) -> list[Pack
         if name in local_packages:
             continue
 
-        if name in available_packages:
-            _, existing_link = available_packages[name]
-            if link == existing_link:
-                continue
+        if name not in available_packages:
+            if not fetcher.ensure(link.subdir, link.url, link.tag):
+                raise FetchError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
+
+            repo_root = ctx.project_config.cloned_repositories_dir / link.subdir
+            for package in Package.glob_in(repo_root):
+                if package.name in available_packages:
+                    raise ModuleGraphError(f"Duplicate package name across checkouts: {package.name}")
+                available_packages[package.name] = (package, link)
+
+            if name not in available_packages:
+                raise ModuleGraphError(f"Could not find package {name} at {repo_root.as_posix()} ({link.url} {link.tag})")
+
+        package, existing_link = available_packages[name]
+        if link != existing_link:
             raise ModuleGraphError(
                 f"Packages with the same address must be identical. Existing: {existing_link.url} {existing_link.tag} {existing_link.subdir}. New one: {link.url} {link.tag} {link.subdir}"
             )
 
-        if not fetcher.ensure(link.subdir, link.url, link.tag):
-            raise FetchError(f"Failed to fetch: {link.url}. Check it exists and has {link.tag} branch or tag")
-
-        repo_root = ctx.project_config.cloned_repositories_dir / link.subdir
-        for package in Package.glob_in(repo_root):
-            if package.name in available_packages:
-                raise ModuleGraphError(f"Duplicate package name across checkouts: {package.name}")
-            available_packages[package.name] = (package, link)
-            if package.name in required_packages:
-                packages_to_fetch.extend(package.dependencies)
-
-        if name not in available_packages:
-            raise ModuleGraphError(f"Could not find package {name} at {repo_root.as_posix()} ({link.url} {link.tag})")
+        if name not in expanded_packages:
+            expanded_packages.add(name)
+            packages_to_fetch.extend(package.dependencies)
 
     return list(
         filter(
