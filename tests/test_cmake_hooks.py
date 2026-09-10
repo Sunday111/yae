@@ -17,8 +17,9 @@ from yae.resolver import ResolvedProject
     ("module_type", "generate_cmake"),
     [("Library", True), ("Executable", True), ("Library", False), ("GitClone", True)],
 )
+@pytest.mark.parametrize("add_subdirectory", [True, False])
 def test_module_hook_runs_once_in_its_expected_scope(
-    tmp_path: Path, module_type: str, generate_cmake: bool
+    tmp_path: Path, module_type: str, generate_cmake: bool, add_subdirectory: bool
 ) -> None:
     project = tmp_path / "project"
     module_dir = project / "modules" / "example"
@@ -39,6 +40,7 @@ def test_module_hook_runs_once_in_its_expected_scope(
         json.dumps({
             "ModuleType": module_type,
             "GenerateCMakeFile": generate_cmake,
+            "CMakeAddSubdirectory": add_subdirectory,
             "CompressDebugInfo": False,
             "ExtraCMakeFiles": ["hook"],
             "GitUrl": "https://github.com/example/dependency",
@@ -48,7 +50,7 @@ def test_module_hook_runs_once_in_its_expected_scope(
     )
     module = Module(manifest)
     generated = module_type != "GitClone" and generate_cmake
-    expected_scope = module_dir if generated else project
+    expected_scope = module_dir if generated and add_subdirectory else project
     (module_dir / "hook.cmake").write_text(
         'add_custom_target(hook_marker)\n'
         f'if(NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL "{expected_scope.as_posix()}")\n'
@@ -78,6 +80,14 @@ def test_module_hook_runs_once_in_its_expected_scope(
             "cmake", "-S", str(project), "-B", str(tmp_path / "build"),
             f"-DYAE_CLONED_REPOSITORIES_DIR={repositories}",
         ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    result = subprocess.run(
+        ["cmake", "--build", str(tmp_path / "build"), "--target", "hook_marker"],
         capture_output=True,
         text=True,
         check=False,
