@@ -20,6 +20,28 @@ git clone https://github.com/Sunday111/yae
 sudo ln -sf "$PWD/yae/yae" /usr/bin/yae   # optional: call it as `yae` from anywhere
 ```
 
+## Bash completion
+
+With `bash-completion` installed, link the completion script from your YAE checkout:
+
+```bash
+completion_dir="${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion/completions"
+mkdir -p "$completion_dir"
+ln -s "$PWD/completions/yae.bash" "$completion_dir/yae"
+```
+
+Bash loads it automatically when completing `yae`. It completes commands, options,
+directory arguments, and fixed option choices. Build and executable target names
+are not completed. To reload it in a shell that has already loaded the script,
+run `source "$completion_dir/yae"`.
+
+The script is generated from the argument parser. After changing command definitions,
+regenerate it from the checkout root with:
+
+```bash
+uv run python -m yae.completion > completions/yae.bash
+```
+
 ## Quick start
 
 **Build and run a project you already have** (a directory containing `yae_project.json`):
