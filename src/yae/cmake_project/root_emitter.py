@@ -98,9 +98,14 @@ def emit_root_project(gen: CMakeGenerator, resolved_project: ResolvedProject) ->
             gen.line()
             added_subdirs.add(module_source_path.cmake_path)
 
-        for extra_cmake in module.extra_cmake_files:
-            module_root = path_resolver.source_path(module.root_dir, prefer_project_root=prefer_project_root)
-            gen.include(f"{module_root}/{extra_cmake}.cmake")
+        if (
+            module.module_type == ModuleType.GITCLONE
+            or not module.generate_cmake_file
+            or not module.should_add_subdirectory
+        ):
+            for extra_cmake in module.extra_cmake_files:
+                module_root = path_resolver.source_path(module.root_dir, prefer_project_root=prefer_project_root)
+                gen.include(f"{module_root}/{extra_cmake}.cmake")
 
     _emit_staging_target_dependencies(gen, module_registry)
 
